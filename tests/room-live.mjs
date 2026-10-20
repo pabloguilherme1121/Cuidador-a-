@@ -20,6 +20,11 @@ try{
  const denied=await json(url);assert.equal(denied.status,403,'New rooms require a viewing token');
  const got=await json(url,'GET',null,null,room.readToken);assert.equal(got.status,200);assert.equal(got.body.legacy,false);
  assert.deepEqual(await decryptRoom(room,got.body),synthetic);
+ // Conditional GET must authenticate first and respond without ciphertext if unchanged.
+ const cached=await fetch(url,{headers:{'X-Room-Read-Token':room.readToken,'If-None-Match':'"v1"'}});
+ assert.equal(cached.status,304);assert.equal(await cached.text(),'');
+ const deniedCached=await fetch(url,{headers:{'If-None-Match':'"v1"'}});
+ assert.equal(deniedCached.status,403);
  const unauthorized=await json(url,'PUT',{...encrypted,version:1},'not-valid');assert.equal(unauthorized.status,403);
  const readonlyEdit=await json(url,'PUT',{...encrypted,version:1},room.readToken);assert.equal(readonlyEdit.status,403);
  const readonlyDelete=await json(url,'DELETE',null,room.readToken);assert.equal(readonlyDelete.status,403);
