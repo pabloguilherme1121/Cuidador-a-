@@ -49,6 +49,17 @@ Consulte `docs/AUDITORIA_v2.2.md` para o nível do projeto, evidências de teste
 
 **v2.2:** proteção padrão de dados em notificações, lembretes que atravessam meia-noite e SW v4 com network-first para código.
 
-## Repositório GitHub de destino
+## Publicação atual (20/10/2026)
 
-O destino planejado é **`pabloguilherme1121/Cuidador`** (conta conectada). O repositório ainda precisa ser criado manualmente em https://github.com/new porque o conector GitHub atual não expõe a ação de criação. Depois de criado, envie esta branch `main` com `git push -u origin main` e configure Cloudflare Pages Free apontando para o repositório. Não use `Pabloguilherme01/Cuidador`, da outra conta.
+- **Site HTTPS online:** https://cuidadora-pwa.pabloguui21.workers.dev/
+- **GitHub:** https://github.com/pabloguilherme1121/Cuidador-a-
+- **Código publicado:** commit imutável `a407b4adb7013723f4398fb41ff7923e9617b4da`, aprovado no CI GitHub Actions.
+- **Hospedagem temporária:** Cloudflare Workers no subdomínio `workers.dev`, usando apenas requisições públicas de arquivos estáticos do GitHub fixadas no commit validado. O Worker não recebe dados de medicamentos, que ficam no armazenamento local do navegador.
+- **Git:** ainda **não** há deploy automático: mudanças na `main` não são publicadas até atualizar o commit fixado no Worker. O workflow `smoke-producao.yml` verifica o endereço HTTPS, mas não realiza deploy.
+- **Cloudflare Pages:** integração GitHub ficou bloqueada por erro de instalação/autorização da Cloudflare (HTTP 401, código 8000011). Reconectar a integração GitHub em Workers & Pages permite tentar novamente. Não foi criado projeto Pages.
+- **Custo:** implantação sem contratação de serviço pago. Workers Free permanece sujeito aos limites de uso do plano.
+- **Atenção à migração de domínio:** dados em `localStorage` não migram automaticamente de `workers.dev` para `pages.dev`. Exporte backup JSON no site antigo e importe no novo antes de deixar de usar o antigo.
+- **Cuidados:** não usar os avisos do navegador como único método para medicamentos críticos. Alarmes confiáveis com o app fechado ainda dependem do calendário nativo ou de uma infraestrutura adicional que não foi ativada.
+
+A configuração sugerida para uma futura migração ao Cloudflare Pages Free é: GitHub `pabloguilherme1121/Cuidador-a-`, branch `main`, build `npm ci --ignore-scripts && npm run build`, saída `dist`.
+
