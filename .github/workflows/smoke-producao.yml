@@ -26,6 +26,8 @@ jobs:
           grep -Fq 'normalizePreferences' "$tmpdir/app.js"
           grep -Eq 'cuidadora-cache-v[0-9]+' "$tmpdir/sw.js"
           grep -Fq 'standalone' "$tmpdir/manifest.webmanifest"
+          curl --fail --silent --show-error --location --retry 3 --max-time 30 --output "$tmpdir/chat.mjs" "$BASE_URL/chat.mjs"
+          grep -Fq 'createChatMessage' "$tmpdir/chat.mjs"
           curl --fail --location --retry 3 --max-time 30 --output /dev/null "$BASE_URL/assets/icon-192.png"
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$BASE_URL/.env.example")" = '404'
           echo 'PWA HTTPS, manifesto, JS, SW e proteção de arquivos privados: OK'

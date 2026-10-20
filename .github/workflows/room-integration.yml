@@ -6,6 +6,8 @@ on:
       - '.github/workflows/room-integration.yml'
       - 'tests/room-live.mjs'
       - 'room.mjs'
+      - 'chat.mjs'
+      - 'tests/chat.test.mjs'
       - 'cloudflare/worker.mjs'
   workflow_dispatch:
 permissions:
