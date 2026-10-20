@@ -1,0 +1,73 @@
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+ROOT=Path(__file__).resolve().parents[1]
+html=(ROOT/'index.html').read_text()
+html=html.replace('<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; connect-src \'self\'; base-uri \'self\'; object-src \'none\'; frame-ancestors \'none\'" />','').replace('<script src="./app.js" type="module"></script>','').replace('<link rel="stylesheet" href="./styles.css" />','')
+app=(ROOT/'app.js').read_text()
+assert app.startswith('import {') and "from './core.mjs';" in app.split('\n',1)[0], 'Changed source import needs test harness update'
+app=app.split('\n',1)[1]
+core=(ROOT/'core.mjs').read_text().replace('export ','')
+with sync_playwright() as p:
+ b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ for w in [320,360,390,430,844]:
+  page=b.new_page(viewport={'width':w,'height':820})
+  errors=[]
+  page.on('pageerror',lambda e:errors.append(str(e)))
+  page.set_content(html)
+  page.evaluate('''() => { const db=new Map(); Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)}}); }''')
+  page.add_style_tag(content=(ROOT/'styles.css').read_text())
+  page.add_script_tag(content=core)
+  page.add_script_tag(content=app)
+  assert not errors, f'JS error on {w}px: {errors}'
+  assert page.locator('h1').count()>=1, f'No heading at {w}'
+  page.locator('#onboard-form button[type=submit]').click()
+  assert page.locator('.tabbtn').count()==5
+  assert page.locator('h1').count()>=1
+  if w==390:page.screenshot(path='/mnt/data/cuidadora-hoje.png',full_page=True)
+  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
+  page.get_by_role('button',name='Timer',exact=True).click()
+  assert page.locator('#timer-display').inner_text()=='15:00'
+  page.locator('[data-action="timer-preset"][data-minutes="5"]').click()
+  assert page.locator('#timer-display').inner_text()=='05:00'
+  page.locator('[data-action="timer-toggle"]').click()
+  assert page.locator('[data-action="timer-toggle"]').count()==1
+  page.locator('[data-action="timer-reset"]').click()
+  page.locator('.tabbtn[data-tab="settings"]').click()
+  assert page.locator('h1').inner_text()=='Personalização'
+  assert page.locator('#private-notification-choice').is_checked(), 'Private lock-screen notifications must default to enabled'
+  page.locator('[data-action="accent"][data-accent="ocean"]').click()
+  assert page.evaluate('document.documentElement.dataset.accent')=='ocean'
+  page.locator('#theme-choice').select_option('dark')
+  assert page.evaluate('document.documentElement.dataset.theme')=='dark'
+  page.locator('[data-action="legal"][data-page="privacidade"]').click()
+  assert page.locator('#legalDialog').evaluate('(e)=>e.open')
+  page.locator('[data-action="close-legal"]').click()
+  page.locator('.tabbtn[data-tab="routine"]').click()
+  page.locator('[data-action="add"]').first.click()
+  page.locator('#item-title').fill('Almoço teste')
+  page.locator('#item-times').fill('12:30')
+  page.locator('#item-form button[type=submit]').click()
+  assert page.get_by_text('Almoço teste').count()>0
+  page.locator('#routine-search').fill('inexistente')
+  assert page.locator('.routine-card:visible').count()==0
+  page.locator('.tabbtn[data-tab="today"]').click()
+  page.locator('[data-action="add"][data-type="med"]').first.click()
+  page.locator('#item-title').fill('Medicamento teste')
+  page.locator('#item-dose').fill('Conforme receita')
+  page.locator('#item-times').fill('08:00, 20:00')
+  page.locator('#item-form button[type=submit]').click()
+  page.locator('[data-action="filter"][data-filter="med"]').click()
+  assert page.locator('.entry').count()==2
+  page.locator('[data-action="toggle"]').first.click()
+  page.locator('.tabbtn[data-tab="history"]').click()
+  assert page.get_by_text('Medicamento teste').count()>=2
+  page.locator('.tabbtn[data-tab="settings"]').click()
+  page.locator('[data-action="wipe"]').click()
+  assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
+  page.locator('[data-action="cancel-delete"]').click()
+  assert page.locator('#confirmDialog').evaluate('(e)=>!e.open')
+  assert not errors, f'JS errors at {w}: {errors}'
+  print(f'{w}px: onboarding, tabs, timer, theme, palette, legal, CRUD and search passed')
+  if w==390:page.screenshot(path='/mnt/data/cuidadora-mobile.png',full_page=True)
+  page.close()
+ b.close()
