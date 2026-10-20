@@ -1,5 +1,5 @@
 import {normalizePreferences,formatCountdown,isReminderWindow,reminderContent,inQuietHours,remainingSeconds,restoreTimer} from './core.mjs';
-import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,sharedSnapshot,encryptRoom,decryptRoom,ROOM_STORAGE} from './room.mjs';
+import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,sharedSnapshot,encryptRoom,decryptRoom,syncPlan,roomStatusLabel,ROOM_STORAGE} from './room.mjs';
 (() => {
   'use strict';
   const KEY='cuidadora-data-v2';
@@ -72,9 +72,9 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     }
     return {version:1,profile:{name:safeText(input.profile?.name,60),onboarded:input.profile?.onboarded===true},settings:normalizePreferences(input.settings),items,logs,noticeLog};
   }
-  let room=null,roomVersion=0,roomDirty=false,roomSnapshot='',roomBusy=false,roomError='',roomDebounce=null,pendingInvitation=parseRoomFragment(location.hash);
-  try{const r=JSON.parse(localStorage.getItem(ROOM_STORAGE)||'null');if(r&&/^[\w-]{22}$/.test(r.id)&&/^[\w-]{43}$/.test(r.key)){room={id:r.id,key:r.key,...(r.editorSecret?{editorSecret:r.editorSecret}:(r.role==='viewer'?(r.unsafeReadOnly?{unsafeReadOnly:true}:{}):{legacy:true}))};roomVersion=Number(r.version)||0;roomDirty=r.dirty===true;}}catch{}
-  const persistRoom=()=>{try{if(room)localStorage.setItem(ROOM_STORAGE,JSON.stringify({id:room.id,key:room.key,...(room.editorSecret?{editorSecret:room.editorSecret}:{}),...(room.unsafeReadOnly?{unsafeReadOnly:true}:{}),role:roomCanEdit(room)?'editor':'viewer',...(!room.editorSecret&&room.legacy?{legacy:true}:{}),version:roomVersion,dirty:roomDirty}));else localStorage.removeItem(ROOM_STORAGE)}catch{}};
+  let room=null,roomVersion=0,roomDirty=false,roomConflict=false,roomSyncedAt=0,roomSnapshot='',roomBusy=false,roomError='',roomDebounce=null,pendingInvitation=parseRoomFragment(location.hash);
+  try{const r=JSON.parse(localStorage.getItem(ROOM_STORAGE)||'null');if(r&&/^[\w-]{22}$/.test(r.id)&&/^[\w-]{43}$/.test(r.key)){room={id:r.id,key:r.key,...(r.editorSecret?{editorSecret:r.editorSecret}:(r.role==='viewer'?(r.unsafeReadOnly?{unsafeReadOnly:true}:{}):{legacy:true}))};roomVersion=Number(r.version)||0;roomDirty=r.dirty===true;roomConflict=r.conflict===true;roomSyncedAt=Number(r.syncedAt)||0;}}catch{}
+  const persistRoom=()=>{try{if(room)localStorage.setItem(ROOM_STORAGE,JSON.stringify({id:room.id,key:room.key,...(room.editorSecret?{editorSecret:room.editorSecret}:{}),...(room.unsafeReadOnly?{unsafeReadOnly:true}:{}),role:roomCanEdit(room)?'editor':'viewer',...(!room.editorSecret&&room.legacy?{legacy:true}:{}),version:roomVersion,dirty:roomDirty,conflict:roomConflict,syncedAt:roomSyncedAt}));else localStorage.removeItem(ROOM_STORAGE)}catch{}};
   let state=initial();
   try {const raw=localStorage.getItem(KEY)||localStorage.getItem(LEGACY);if(raw)state=validate(JSON.parse(raw))}catch(err){console.warn('Armazenamento recuperado com padrão seguro:',err)}
   let tab='today',filter='all',statusFilter='all',routineFilter='all',historyDay=dateKey(new Date()),deferredInstall=null,toastTimer=0,storageWarned=false,searchQuery='';
@@ -132,7 +132,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
    const connected=Boolean(room),editor=roomCanEdit(room),legacyRoom=Boolean(room&&(room.legacy||room.unsafeReadOnly));
    return `<section class="room-page"><p class="eyebrow">Vários aparelhos, um só cuidado</p><h1 class="page-title">Sala de Pacientes</h1><p class="page-subtitle">Compartilhe os horários e modos que você configurou, sem precisar repetir o cadastro em cada celular.</p><div class="room-hero"><span class="room-symbol">${icon('users',30)}</span><div><strong>${connected?'Sua sala está conectada':'Crie sua sala particular'}</strong><p>${connected?'Rotinas e preferências sincronizadas com criptografia.':'Um link privado conecta os aparelhos da família ou de quem presta cuidados.'}</p></div></div>
     ${roomError?`<p class="mini-flag" role="alert">${esc(roomError)}</p>`:''}
-    ${connected?`<section class="panel setting-card"><div class="room-role">${icon(editor?'shield':'eye',18)} <strong>${editor?'Acesso de edição':'Somente visualização'}</strong></div><h2>Convites de acesso</h2><p>${editor?'Envie o link de leitura para quem só acompanha e o de edição apenas para cuidadores de confiança.':'Você pode acompanhar a rotina sem modificar os horários compartilhados.'}</p>${legacyRoom?`<p class="mini-flag" role="alert">Sala criada na versão anterior: links antigos podem permitir edição. ${editor?'Use Revogar links e criar novos antes de compartilhar acesso de leitura.':'Peça ao titular que renove os convites para ter uma sala com permissão de leitura protegida.'}</p>`:`<div class="room-link">${icon('eye',20)} <span>Link privado de visualização</span></div><div class="inline-actions"><button class="btn primary" data-action="room-copy" data-role="view">${icon('link',17)} Copiar leitura</button><button class="btn" data-action="room-share" data-role="view">Compartilhar leitura</button></div>`}${editor?`<div class="room-link">${icon('shield',20)} <span>Link restrito de edição</span></div><div class="inline-actions"><button class="btn" data-action="room-copy" data-role="edit">${icon('link',17)} Copiar edição</button><button class="btn" data-action="room-share" data-role="edit">Compartilhar edição</button></div>`:''}<div class="room-meta"><span>Estado: <strong>${roomBusy?'Sincronizando…':roomDirty?'Alterações locais pendentes':'Conectado'}</strong></span><span>Versão ${roomVersion}</span></div><div class="inline-actions"><button class="btn" data-action="room-pull">${icon('refresh',16)} Receber alterações</button>${editor?`<button class="btn" data-action="room-push">Enviar minhas alterações</button>`:''}</div><p class="help">A sincronização funciona com internet. Conflitos exigem sua escolha; nada é substituído silenciosamente. Seu histórico de conclusões continua apenas neste aparelho.</p></section><section class="panel setting-card"><h2>Gerenciar acesso</h2><div class="inline-actions">${editor?`<button class="btn danger" data-action="room-rotate">${icon('refresh',16)} Revogar links e criar novos</button><button class="btn danger" data-action="room-delete">${icon('trash',16)} Excluir sala para todos</button>`:''}<button class="btn ghost" data-action="room-leave">Sair só deste aparelho</button></div><p>${editor?'Revogar links cria outra sala com novos segredos. Os aparelhos antigos perdem acesso até receberem novo convite.':'Seu link de leitura não pode alterar ou excluir a sala.'} A saída deste aparelho preserva os horários locais.</p></section>`:
+    ${connected?`<section class="panel setting-card"><div class="room-role">${icon(editor?'shield':'eye',18)} <strong>${editor?'Acesso de edição':'Somente visualização'}</strong></div><h2>Convites de acesso</h2><p>${editor?'Envie o link de leitura para quem só acompanha e o de edição apenas para cuidadores de confiança.':'Você pode acompanhar a rotina sem modificar os horários compartilhados.'}</p>${legacyRoom?`<p class="mini-flag" role="alert">Sala criada na versão anterior: links antigos podem permitir edição. ${editor?'Use Revogar links e criar novos antes de compartilhar acesso de leitura.':'Peça ao titular que renove os convites para ter uma sala com permissão de leitura protegida.'}</p>`:`<div class="room-link">${icon('eye',20)} <span>Link privado de visualização</span></div><div class="inline-actions"><button class="btn primary" data-action="room-copy" data-role="view">${icon('link',17)} Copiar leitura</button><button class="btn" data-action="room-share" data-role="view">Compartilhar leitura</button></div>`}${editor?`<div class="room-link">${icon('shield',20)} <span>Link restrito de edição</span></div><div class="inline-actions"><button class="btn" data-action="room-copy" data-role="edit">${icon('link',17)} Copiar edição</button><button class="btn" data-action="room-share" data-role="edit">Compartilhar edição</button></div>`:''}<div class="room-meta" aria-live="polite"><span class="room-status" data-testid="room-status">${icon(navigator.onLine&&!roomConflict?'check':'refresh',16)} <strong>${roomStatusLabel({busy:roomBusy,offline:!navigator.onLine,conflict:roomConflict,dirty:roomDirty})}</strong></span><span>Versão ${roomVersion} · ${roomSyncedAt?'Verificada às '+new Date(roomSyncedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'Não verificada'}</span></div><div class="inline-actions"><button class="btn" data-action="room-pull">${icon('refresh',16)} Receber alterações</button>${editor?`<button class="btn" data-action="room-push">Enviar minhas alterações</button>`:''}</div><p class="help">A sincronização funciona com internet. Conflitos exigem sua escolha; nada é substituído silenciosamente. Seu histórico de conclusões continua apenas neste aparelho.</p></section><section class="panel setting-card"><h2>Gerenciar acesso</h2><div class="inline-actions">${editor?`<button class="btn danger" data-action="room-rotate">${icon('refresh',16)} Revogar links e criar novos</button><button class="btn danger" data-action="room-delete">${icon('trash',16)} Excluir sala para todos</button>`:''}<button class="btn ghost" data-action="room-leave">Sair só deste aparelho</button></div><p>${editor?'Revogar links cria outra sala com novos segredos. Os aparelhos antigos perdem acesso até receberem novo convite.':'Seu link de leitura não pode alterar ou excluir a sala.'} A saída deste aparelho preserva os horários locais.</p></section>`:
     `<section class="panel setting-card"><h2>Compartilhar minhas configurações</h2><p>A sala compartilha as refeições, os medicamentos e os modos visuais. Seu nome pessoal, histórico de conclusão e alarmes tocados não são enviados.</p><button class="btn primary full" data-action="room-create">${icon('add',19)} Criar sala com minha rotina</button><p class="help">Dados de saúde da sala ficam criptografados antes de sair do navegador. Sem login. Não há recuperação do link se você perdê-lo.</p></section>`}
     <aside class="disclaimer">${icon('shield',17)} A sincronização exige conexão. Links de leitura e edição têm permissões diferentes. Não substitui a supervisão dos medicamentos nem garante alertas com app fechado.</aside></section>`;
   }
@@ -154,10 +154,11 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(!state.profile.onboarded){root.innerHTML=`<div class="app-frame">${renderOnboard()}</div>`;return}
     root.innerHTML=`<div class="app-frame">${header()}<main id="main-content">${tab==='routine'?renderRoutine():tab==='history'?renderHistory():tab==='settings'?renderSettings():tab==='room'?renderRoom():tab==='timer'?renderTimer():renderToday()}</main></div>${bottomNav()}`;
   }
-  function storeRoom(roomData,version){room=roomData;roomVersion=version;roomDirty=false;roomError='';roomSnapshot=JSON.stringify(sharedSnapshot(state));persistRoom()}
+  function storeRoom(roomData,version){room=roomData;roomVersion=version;roomDirty=false;roomConflict=false;roomSyncedAt=Date.now();roomError='';roomSnapshot=JSON.stringify(sharedSnapshot(state));persistRoom()}
   const roomUrl=id=>`/api/rooms/${encodeURIComponent(id)}`;
   async function roomRequest(url,options={}){
     const res=await fetch(url,{cache:'no-store',...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});
+    if(res.status===304)return {unchanged:true};
     const payload=await res.json().catch(()=>({}));
     if(!res.ok)throw Object.assign(new Error(payload.error||'Não foi possível sincronizar.'),{status:res.status});
     return payload;
@@ -174,20 +175,30 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     history.replaceState(null,'',location.pathname+location.search);
     applyRoomSnapshot(payload);storeRoom({id:candidate.id,key:candidate.key,...(candidate.editorSecret?{editorSecret:candidate.editorSecret}:{}),...(r.legacy?{unsafeReadOnly:true}:{})},r.version);tab='room';toast('Sala conectada e rotinas recebidas.');
   }catch(e){roomError=e.message;toast('Não foi possível entrar: '+e.message)}finally{roomBusy=false;render()}}
-  async function pullRoom(silent=false){if(!room||roomBusy)return;roomBusy=true;try{
-    const reader=await completeCredentials(room);const r=await roomRequest(roomUrl(room.id),{headers:{'X-Room-Read-Token':reader.readToken}});if(r.version!==roomVersion){
-      if(roomDirty){roomError='Há alterações neste aparelho e em outro. Faça backup e escolha se deseja receber ou enviar. Nenhuma versão foi substituída.';if(!silent)toast(roomError);return}
-      const payload=await decryptRoom(room,r);applyRoomSnapshot(payload);roomVersion=r.version;roomSnapshot=JSON.stringify(sharedSnapshot(state));persistRoom();if(!silent)toast('Alterações recebidas da sala.');
-    }else if(!silent)toast('Sala já está atualizada.');roomError='';
+  async function pullRoom(silent=false,force=false){if(!room||roomBusy)return;roomBusy=true;try{
+    const currentId=room.id,reader=await completeCredentials(room);
+    const headers={'X-Room-Read-Token':reader.readToken};
+    if(roomVersion&&!force)headers['If-None-Match']=`"v${roomVersion}"`;
+    const r=await roomRequest(roomUrl(currentId),{headers});
+    if(!room||room.id!==currentId)return;
+    if(r.unchanged){roomSyncedAt=Date.now();persistRoom();if(!silent)toast(roomDirty?'Sala sem novas alterações; seu envio ainda está pendente.':'Sala já está atualizada.');return}
+    if(r.version!==roomVersion||force){
+      if(roomDirty&&!force){roomConflict=true;roomError='Outro aparelho alterou esta sala. Exporte um backup, depois escolha Receber e substituir. Seus dados locais não foram apagados.';persistRoom();if(!silent)toast(roomError);return}
+      const payload=await decryptRoom(room,r);applyRoomSnapshot(payload);
+      roomVersion=r.version;roomConflict=false;roomSyncedAt=Date.now();roomSnapshot=JSON.stringify(sharedSnapshot(state));persistRoom();
+      if(!silent)toast('Alterações recebidas da sala.');
+    }else if(!silent)toast('Sala já está atualizada.');
+    roomError='';roomSyncedAt=Date.now();persistRoom();
   }catch(e){roomError=e.message;if(!silent)toast('Falha ao receber: '+e.message)}finally{roomBusy=false;if(tab==='room')render()}}
-  async function pushRoom(){if(!room||!roomCanEdit(room)||!roomVersion||roomBusy||!roomDirty)return;roomBusy=true;try{
-    const credential=await completeCredentials(room),encrypted=await encryptRoom(credential,sharedSnapshot(state)),current=JSON.stringify(sharedSnapshot(state));
-    const r=await roomRequest(roomUrl(room.id),{method:'PUT',headers:{'X-Room-Token':credential.token},body:JSON.stringify({...encrypted,version:roomVersion})});
-    roomVersion=r.version;roomSnapshot=current;roomDirty=JSON.stringify(sharedSnapshot(state))!==current;roomError='';persistRoom();
-  }catch(e){roomError=e.status===409?'Conflito: outro aparelho alterou a sala. Use “Receber alterações” após exportar seu backup local.':e.message;toast(roomError)}finally{roomBusy=false;if(tab==='room')render()}}
+  async function pushRoom(){if(!room||!roomCanEdit(room)||!roomVersion||roomBusy||!roomDirty||roomConflict)return;roomBusy=true;try{
+    const currentId=room.id,credential=await completeCredentials(room),encrypted=await encryptRoom(credential,sharedSnapshot(state)),current=JSON.stringify(sharedSnapshot(state));
+    const r=await roomRequest(roomUrl(currentId),{method:'PUT',headers:{'X-Room-Token':credential.token},body:JSON.stringify({...encrypted,version:roomVersion})});
+    if(!room||room.id!==currentId)return;
+    roomVersion=r.version;roomSnapshot=current;roomDirty=JSON.stringify(sharedSnapshot(state))!==current;roomConflict=false;roomSyncedAt=Date.now();roomError='';persistRoom();
+  }catch(e){roomConflict=e.status===409;roomError=roomConflict?'Conflito: outro aparelho alterou a sala. Salve backup antes de receber a nova versão.':e.message;persistRoom();toast(roomError)}finally{roomBusy=false;if(tab==='room')render()}}
   async function deleteRoom(){if(!room||!roomCanEdit(room)||roomBusy)return;roomBusy=true;try{
     const credential=await completeCredentials(room);await roomRequest(roomUrl(room.id),{method:'DELETE',headers:{'X-Room-Token':credential.token}});
-    room=null;roomVersion=0;roomDirty=false;roomSnapshot='';persistRoom();roomError='';toast('Sala removida do servidor. Seus dados locais foram preservados.');
+    room=null;roomVersion=0;roomDirty=false;roomConflict=false;roomSyncedAt=0;roomSnapshot='';persistRoom();roomError='';toast('Sala removida do servidor. Seus dados locais foram preservados.');
   }catch(e){roomError=e.message;toast('Falha ao excluir sala: '+e.message)}finally{roomBusy=false;render()}}
   async function rotateRoom(){
     if(!room||!roomCanEdit(room)||roomBusy)return;
@@ -207,7 +218,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
       toast('Links antigos revogados. Compartilhe os novos convites.');
     }catch(error){roomError=error.message;toast(roomError)}finally{roomBusy=false;render()}
   }
-  function leaveRoom(){clearTimeout(roomDebounce);room=null;roomVersion=0;roomDirty=false;roomSnapshot='';roomError='';persistRoom();render();toast('Você saiu da sala. Rotinas permanecem neste aparelho.')}
+  function leaveRoom(){clearTimeout(roomDebounce);room=null;roomVersion=0;roomDirty=false;roomConflict=false;roomSyncedAt=0;roomSnapshot='';roomError='';persistRoom();render();toast('Você saiu da sala. Rotinas permanecem neste aparelho.')}
   function toast(message){const elem=document.getElementById('toast');elem.textContent=message;elem.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>elem.classList.remove('show'),3800)}
   function mark(key){const [day,id,time]=key.split('|');if(day!==dateKey(new Date())){toast('Altere somente os registros do dia atual.');return}let item=state.items.find(x=>x.id===id);const prev=state.logs[key];if(!prev&&!item){toast('Esse item já foi removido.');return}
     setState(s=>{const logs={...s.logs};if(logs[key])delete logs[key];else logs[key]={doneAt:new Date().toISOString(),snapshot:{title:item.title,type:item.type,dose:item.dose,note:item.note}};return {...s,logs}});toast(prev?'Conclusão desfeita.':'Horário marcado como concluído.');
@@ -291,8 +302,8 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='room-rotate'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Revogar TODOS os convites antigos?</h2><p>Uma nova sala criptografada será criada e a anterior será excluída. Todos os aparelhos conectados perderão acesso até receberem os novos links. Faça backup e confira se as alterações estão sincronizadas.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="room-rotate-confirm">Revogar e gerar novos</button></div>`;openDialog(dlg);return}
     if(action==='room-rotate-confirm'){document.getElementById('confirmDialog').close();await rotateRoom();return}
     if(action==='room-pull'){if(roomDirty){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Descartar mudanças deste aparelho?</h2><p>Você possui alterações ainda não enviadas. Faça backup antes. Ao receber a sala, os horários locais serão substituídos pelos do servidor.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="room-force-pull">Receber e substituir</button></div>`;openDialog(dlg)}else await pullRoom();return}
-    if(action==='room-force-pull'){roomDirty=false;document.getElementById('confirmDialog').close();await pullRoom();return}
-    if(action==='room-push'){if(roomDirty)await pushRoom();else toast('Nada novo para enviar.');return}
+    if(action==='room-force-pull'){document.getElementById('confirmDialog').close();await pullRoom(false,true);return}
+    if(action==='room-push'){if(roomConflict){toast('Conflito de edição: salve backup e receba a versão atual antes de editar.');return}if(roomDirty)await pushRoom();else toast('Nada novo para enviar.');return}
     if(action==='room-leave'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Sair da sala?</h2><p>Os horários continuam neste aparelho. Você perderá a sincronização até usar novamente o link.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="room-leave-confirm">Sair</button></div>`;openDialog(dlg);return}
     if(action==='room-leave-confirm'){document.getElementById('confirmDialog').close();leaveRoom();return}
     if(action==='room-delete'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Excluir sala de todos os aparelhos?</h2><p>O link deixará de funcionar e os dados criptografados serão excluídos da sala. Outros aparelhos manterão suas cópias locais.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="room-delete-confirm">Excluir sala</button></div>`;openDialog(dlg);return}
@@ -309,7 +320,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='wipe-routines'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Apagar todas as rotinas salvas?</h2><p>As refeições e medicamentos serão removidos deste aparelho. O histórico de horários concluídos será preservado. Se você estiver em uma sala, a exclusão será sincronizada.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="wipe-routines-confirm">Apagar rotinas</button></div>`;openDialog(dlg);return}
     if(action==='wipe-routines-confirm'){state.items=[];save();document.getElementById('confirmDialog').close();render();toast('Todas as rotinas foram apagadas.');return}
     if(action==='wipe'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Apagar todos os dados?</h2><p>Essa ação apaga definitivamente horários, medicamentos, histórico e preferências neste navegador. Antes, exporte um backup se quiser. Isso também desconecta este aparelho de qualquer Sala, mas não exclui a sala na nuvem.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="wipe-confirm">Apagar permanentemente</button></div>`;openDialog(dlg);return}
-    if(action==='wipe-confirm'){localStorage.removeItem(KEY);localStorage.removeItem(LEGACY);localStorage.removeItem(TIMERKEY);localStorage.removeItem(ROOM_STORAGE);clearTimeout(roomDebounce);room=null;roomVersion=0;roomDirty=false;roomSnapshot='';state=initial();timerRunning=false;timerDeadline=null;timerFinished=false;timerDuration=15*60;timerRemaining=timerDuration;tab='today';document.getElementById('confirmDialog').close();render();toast('Dados apagados deste navegador.');return}
+    if(action==='wipe-confirm'){localStorage.removeItem(KEY);localStorage.removeItem(LEGACY);localStorage.removeItem(TIMERKEY);localStorage.removeItem(ROOM_STORAGE);clearTimeout(roomDebounce);room=null;roomVersion=0;roomDirty=false;roomConflict=false;roomSyncedAt=0;roomSnapshot='';state=initial();timerRunning=false;timerDeadline=null;timerFinished=false;timerDuration=15*60;timerRemaining=timerDuration;tab='today';document.getElementById('confirmDialog').close();render();toast('Dados apagados deste navegador.');return}
     if(action==='test-alarm'){toast('Este é um aviso de teste.');beep();if('Notification' in window&&Notification.permission==='granted')void showSystemNotice('Cuidador(a) — teste','Notificação de teste',`test-${Date.now()}`);return}
     if(action==='legal'){const dlg=document.getElementById('legalDialog');dlg.innerHTML=(legalContent[el.dataset.page]||legalContent.privacidade)+`<div class="form-actions"><button class="btn primary" data-action="close-legal">Entendi</button></div>`;openDialog(dlg);return}
     if(action==='close-legal'){document.getElementById('legalDialog').close();return}
@@ -355,8 +366,15 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   });
   let lastDay=dateKey(new Date());setInterval(()=>{const day=dateKey(new Date());if(day!==lastDay){lastDay=day;historyDay=day;render()}else if(tab==='today'&&state.profile.onboarded)render();checkReminders()},30000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(tab==='today')render();checkReminders()}});
-  setInterval(()=>{if(room&&navigator.onLine&&!pendingInvitation)void (roomDirty?pushRoom():pullRoom(true))},30000);
-  window.addEventListener('online',()=>{if(room&&!pendingInvitation)void (roomDirty?pushRoom():pullRoom(true))});
-  if(room&&!pendingInvitation){roomSnapshot=JSON.stringify(sharedSnapshot(state));setTimeout(()=>void (roomDirty?pushRoom():pullRoom(true)),1800)}
+  function autoSyncRoom(){
+    const plan=syncPlan({connected:!!room,visible:document.visibilityState==='visible',online:navigator.onLine,busy:roomBusy,pendingInvitation:!!pendingInvitation,conflict:roomConflict,dirty:roomDirty,canEdit:roomCanEdit(room)});
+    if(plan==='push')void pushRoom();else if(plan==='pull')void pullRoom(true);
+    if(tab==='room'&&!roomBusy)render();
+  }
+  setInterval(autoSyncRoom,45000);
+  window.addEventListener('online',autoSyncRoom);
+  window.addEventListener('offline',()=>{if(tab==='room')render()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')autoSyncRoom()});
+  if(room&&!pendingInvitation){roomSnapshot=JSON.stringify(sharedSnapshot(state));setTimeout(autoSyncRoom,1800)}
   setInterval(timerTick,400);render();checkReminders();
 })();

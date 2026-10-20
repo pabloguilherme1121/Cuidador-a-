@@ -37,3 +37,18 @@ export function sharedSnapshot(data){return {version:1,items:data.items,settings
 async function importAES(room){return crypto.subtle.importKey('raw',from64(room.key),'AES-GCM',false,['encrypt','decrypt'])}
 export async function encryptRoom(room,shared){const json=JSON.stringify(shared);if(encoder.encode(json).length>100000)throw new Error('Esta rotina supera o limite seguro de 100 KB. Remova cadastros antigos.');const iv=crypto.getRandomValues(new Uint8Array(12));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(room.id)},await importAES(room),encoder.encode(json));return {iv:to64(iv),ciphertext:to64(new Uint8Array(cipher))}}
 export async function decryptRoom(room,encrypted){if(typeof encrypted?.iv!=='string'||encrypted.iv.length!==16||typeof encrypted.ciphertext!=='string'||encrypted.ciphertext.length>140000)throw new Error('Dados criptografados inválidos');const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:from64(encrypted.iv),additionalData:encoder.encode(room.id)},await importAES(room),from64(encrypted.ciphertext));const obj=JSON.parse(decoder.decode(bytes));if(!obj||obj.version!==1||!Array.isArray(obj.items)||obj.items.length>1000||!obj.settings||typeof obj.settings!=='object')throw new Error('Formato da sala inválido');return obj}
+
+/** Pure sync policy: no polling in background; never keep retrying conflicted writes. */
+export function syncPlan({connected=false,visible=true,online=true,busy=false,pendingInvitation=false,conflict=false,dirty=false,canEdit=false}={}){
+ if(!connected||!visible||busy||pendingInvitation)return 'idle';
+ if(!online)return 'offline';
+ if(conflict)return 'conflict';
+ return dirty&&canEdit?'push':'pull';
+}
+export function roomStatusLabel({busy=false,offline=false,conflict=false,dirty=false}={}){
+ if(busy)return 'Sincronizando…';
+ if(offline)return 'Sem internet';
+ if(conflict)return 'Conflito de edição';
+ if(dirty)return 'Alterações locais pendentes';
+ return 'Atualizada';
+}

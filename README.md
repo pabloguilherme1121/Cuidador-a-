@@ -64,3 +64,12 @@ O código está em **https://github.com/pabloguilherme1121/Cuidador-a-**. A hosp
 - Veja [avaliação técnica v3](docs/AVALIACAO_v3.md).
 
 **Salas legadas:** convites v3.0 de duas partes não distinguiam edição e leitura. Antes de divulgar um link de leitura, quem gerencia a sala deve usar **Revogar links e criar novos**. Os aparelhos antigos exigem novos convites após a migração.
+
+
+## Versão 3.2 — sincronização econômica e proteção contra conflitos
+
+- A Sala consulta automaticamente **apenas quando a janela está visível e o aparelho está online**; ao voltar ao app ou recuperar a conexão, verifica novamente.
+- Leituras condicionais com `If-None-Match` retornam **304 sem corpo** quando a versão remota não mudou (depois de validar a permissão de leitura). Isso reduz tráfego e não coloca dados de saúde em cache.
+- Alterações conflitantes **não são reenviadas repetidamente**: a Sala avisa do conflito e mantém os dados locais para backup. A substituição confirmada só acontece após obter e decifrar os dados do servidor; uma falha de rede não apaga a fila local.
+- Estado de sincronização e hora da última verificação aparecem na Sala. O modo leitura continua sem permissão de alterar ou excluir.
+- Ainda não existe histórico compartilhado de tomadas, alarmes em segundo plano confiáveis ou identidade individual de cuidadores. Guarde links privados e faça backup antes de resolver conflitos.

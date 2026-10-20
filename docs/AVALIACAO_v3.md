@@ -39,3 +39,13 @@
 - Salas v3 anteriores continuam acessíveis ao editor já vinculado naquele navegador. Convites antigos de duas partes entram em modo de visualização. A migração é por revogação e criação da nova sala.
 - Atualização de esquema: coluna opcional `read_hash` na tabela `rooms`, preservando dados anteriores.
 - Sem push web confiável em segundo plano, contas por pessoa, confirmação de leitura ou trilha auditável: limites explícitos.
+
+
+## v3.2 — otimização incremental
+
+- GET condicional retorna 304 apenas após autenticação por token, sem vazar conteúdo cifrado.
+- Não consulta a sala em segundo plano quando a página não está visível; reconecta ao voltar ou ao ficar online.
+- Mantém sinalizador de conflito após recarregar, impedindo PUTs repetidos que não poderiam vencer o controle de versão.
+- Botão de substituir recebe e valida primeiro, preservando dados locais se houver erro na conexão.
+- Atualiza a hora da última consulta bem-sucedida e indica status offline / pendente / conflito.
+- A criptografia e o modelo de convite não mudaram; salas antigas preservadas.

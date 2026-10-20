@@ -43,3 +43,17 @@ test('room API refuses plaintext and unauthorized edits; optimistic sync handles
  r=await roomApi(await request('/api/rooms/'+a.id,'DELETE',null,a.token),env);assert.equal(r.status,200);
  r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,404);
 });
+
+test('conditional room reads save bytes without leaking access or hiding a new version',async()=>{
+ const env={CARE_ROOMS:database()},a=await createCredentials(),enc=await encryptRoom(a,{version:1,items:[],settings:{theme:'dark'}});
+ assert.equal((await roomApi(await request('/api/rooms','POST',{...enc,id:a.id,authHash:a.authHash,readHash:a.readHash}),env)).status,201);
+ const h={'X-Room-Read-Token':a.readToken,'If-None-Match':'"v1"','Origin':base};
+ let r=await roomApi(new Request(base+'/api/rooms/'+a.id,{headers:h}),env);
+ assert.equal(r.status,304);assert.equal(await r.text(),'');
+ r=await roomApi(new Request(base+'/api/rooms/'+a.id,{headers:{'If-None-Match':'"v1"','Origin':base}}),env);
+ assert.equal(r.status,403);
+ r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.token),env);assert.equal(r.status,200);
+ r=await roomApi(new Request(base+'/api/rooms/'+a.id,{headers:h}),env);
+ assert.equal(r.status,200);assert.equal(r.headers.get('ETag'),'"v2"');
+ assert.equal((await r.json()).version,2);
+});
