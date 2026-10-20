@@ -1,4 +1,4 @@
-# Deploy grátis recomendado — Cuidador(a) 2.1
+# Deploy grátis recomendado — Cuidador(a) 2.2
 
 ## Por que Cloudflare Pages Free em vez de GitHub Pages?
 
@@ -14,8 +14,8 @@ O Cloudflare Pages gera um subdomínio próprio `<projeto>.pages.dev`, que cria 
 
 ## Integração GitHub -> Cloudflare Pages (sem serviços pagos)
 
-1. Confirme a **URL exata** do repositório GitHub e acesso ao repo pela conta conectada. O envio do código não deve ser feito para um repositório apenas parecido pelo nome.
-2. Envie o código da pasta Git local ao repositório. Se for um repositório remoto vazio, `bash scripts/conectar-github.sh URL_GITHUB` conecta `origin` e tenta `git push -u origin main` **sem force**. Se o remoto tiver histórico, analise as diferenças antes de mesclar.
+1. Crie um repositório vazio chamado **Cuidador** na conta GitHub conectada **pabloguilherme1121**: https://github.com/new . Selecione esse proprietário explicitamente. A integração ChatGPT confirmou acesso de escrita aos repositórios próprios, mas não disponibiliza uma ação de criação de repositório. Não inicialize README, licença ou .gitignore no site.
+2. Depois da criação do repositório na conta certa, envie o código da pasta Git local. Se o remoto estiver vazio, `bash scripts/conectar-github.sh https://github.com/pabloguilherme1121/Cuidador.git` conecta `origin` e tenta `git push -u origin main` **sem force**. Se o remoto tiver histórico, analise as diferenças antes de mesclar.
 3. Crie uma conta Cloudflare Free ou entre nela. Abra https://dash.cloudflare.com/ -> Workers & Pages -> Create -> Pages -> **Import an existing Git repository / Connect to Git** e autorize o GitHub e o repositório correto (precisa ser autorizado pelo usuário).
 4. Escolha a branch **`main`** como produção e defina **Build command:** `npm ci --ignore-scripts && npm run build`. **Build output directory:** `dist`. **Root directory:** `/` (raiz). Nenhuma variável de ambiente, função, banco, cobrança ou domínio próprio é necessário.
 5. A integração Cloudflare fará deploy a cada push para a branch de produção. PRs podem ter previews separadas.

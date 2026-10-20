@@ -11,6 +11,44 @@ export const isValidEnvelope=e=>e&&typeof e==='object'&&OK_IV.test(e.iv||'')&&OK
 const response=(o,status=200)=>new Response(JSON.stringify(o),{status,headers:JSON_HEADERS});
 const parse=async req=>{if(Number(req.headers.get('content-length'))>145000)throw new Error('Arquivo muito grande');const s=await req.text();if(s.length>145000)throw new Error('Arquivo muito grande');return JSON.parse(s)};
 const checkOrigin=req=>{const origin=req.headers.get('Origin');return !origin||origin===new URL(req.url).origin};
+// Only pseudonymous, time-bucketed HMACs enter D1; the raw IP is never stored.
+// This deters casual automation; shared IPs and botnets can cause false positives/evasion.
+export const CREATE_LIMITS=Object.freeze([{windowMs:900000,max:8},{windowMs:86400000,max:32}]);
+export async function creationGuard(req,env,now=Date.now()){
+ const ip=req.headers.get('CF-Connecting-IP');
+ if(!env.CARE_ROOMS||typeof env.ABUSE_SALT!=='string'||env.ABUSE_SALT.length<24||!ip||ip.length>80)return {allowed:false,status:503};
+ try{
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.ABUSE_SALT),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  for(const {windowMs,max} of CREATE_LIMITS){
+   const slot=Math.floor(now/windowMs),value=new TextEncoder().encode(`${windowMs}:${slot}:${ip}`);
+   const digest=await crypto.subtle.sign('HMAC',key,value);
+   const bucket=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+   const expiry=(slot+1)*windowMs;
+   const result=await env.CARE_ROOMS.prepare('INSERT INTO creation_quotas (bucket, used, expires_at) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET used=used+1 WHERE used < ? RETURNING used').bind(bucket,expiry,max).first();
+   if(!result)return {allowed:false,status:429,retryAfter:Math.ceil(windowMs/1000)};
+  }
+  // Opportunistic bounded cleanup; rate checks never depend on cleanup success.
+  if(Math.random()<0.03){
+   try{await env.CARE_ROOMS.prepare('DELETE FROM creation_quotas WHERE bucket IN (SELECT bucket FROM creation_quotas WHERE expires_at < ? LIMIT 128)').bind(now).run()}catch{}
+  }
+  return {allowed:true};
+ }catch{return {allowed:false,status:503}}
+}
+export function requestCategory(path){
+ if(path==='/api/health')return 'health';
+ if(path==='/api/rooms')return 'rooms';
+ if(/^\/api\/rooms\/[^/]+\/messages$/.test(path))return 'room-messages';
+ if(/^\/api\/rooms\/[^/]+$/.test(path))return 'room';
+ return path.startsWith('/api/')?'unknown-api':'asset';
+}
+export function healthPayload(){return {status:'ok',service:'cuidadora',revision:SOURCE_REVISION}}
+export function responseWithOperations(res,{requestId,retryAfter}={}){
+ const headers=new Headers(res.headers);
+ if(requestId)headers.set('X-Request-ID',requestId);
+ if(retryAfter)headers.set('Retry-After',String(retryAfter));
+ return new Response(res.body,{status:res.status,statusText:res.statusText,headers});
+}
+
 const hashToken=async token=>{const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 async function authorized(req,authHash,header='X-Room-Token'){const auth=req.headers.get(header)||'';if(!OK_HASH.test(auth))return false;const digest=await hashToken(auth);let diff=0;for(let i=0;i<43;i++)diff|=digest.charCodeAt(i)^authHash.charCodeAt(i);return diff===0}
 export async function roomApi(req,env){
@@ -96,4 +134,21 @@ async function staticAsset(req){
  if(path==='sw.js')headers.set('Service-Worker-Allowed','/');
  return new Response(req.method==='HEAD'?null:upstream.body,{status:200,headers});
 }
-export default {async fetch(req,env){try{return new URL(req.url).pathname.startsWith('/api/')?await roomApi(req,env):await staticAsset(req)}catch(err){console.error('Service error',String(err?.message||err));return response({error:'Serviço temporariamente indisponível'},503)}}};
+export default {async fetch(req,env){
+ const start=Date.now(),url=new URL(req.url),category=requestCategory(url.pathname),requestId=crypto.randomUUID();
+ let result, retryAfter;
+ try{
+  if(category==='health'&&req.method==='GET')result=response(healthPayload());
+  else if(url.pathname==='/api/rooms'&&req.method==='POST'){
+   const gate=await creationGuard(req,env);
+   if(!gate.allowed){retryAfter=gate.retryAfter;result=response({error:gate.status===429?'Limite temporário de criação de salas. Aguarde.':'Criação de salas temporariamente indisponível.'},gate.status)}
+   else result=await roomApi(req,env);
+  }else result=url.pathname.startsWith('/api/')?await roomApi(req,env):await staticAsset(req);
+ }catch{
+  result=response({error:'Serviço temporariamente indisponível'},503);
+ }
+ // No tokens, room IDs, patient details, IP addresses, URL queries or bodies in application logs.
+ if(category!=='asset'&&(result.status>=500||result.status===429||Math.random()<0.01))
+  console.log(JSON.stringify({type:'request',route:category,method:req.method,status:result.status,elapsedMs:Date.now()-start}));
+ return responseWithOperations(result,{requestId,retryAfter});
+}};

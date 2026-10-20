@@ -46,7 +46,7 @@ export function reminderContent(occurrence,privateNotifications=true) {
  return {title,body:`${occurrence.title} · ${occurrence.time}`};
 }
 
-/** Distinguish overdue care from completed schedules; never claim a missed dose was taken. */
+/** Distinguish overdue care from completed schedules; UI never claims a missed dose was taken. */
 export function todayHeroState(list=[]) {
  if(!list.length)return {status:'empty',title:'Um dia do seu jeito',description:'Comece cadastrando sua primeira refeição ou medicamento.'};
  if(list.every(o=>Boolean(o.doneAt)))return {status:'complete',title:'Tudo concluído por hoje!',description:'Todos os horários cadastrados foram marcados como concluídos.'};

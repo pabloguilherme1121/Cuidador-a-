@@ -18,3 +18,11 @@ CREATE TABLE IF NOT EXISTS room_messages (
   PRIMARY KEY (room_id, id)
 );
 CREATE INDEX IF NOT EXISTS room_messages_latest ON room_messages(room_id,created_at DESC,id DESC);
+
+-- Short-lived, pseudonymous throttling for anonymous room creation. No raw IPs or patient data.
+CREATE TABLE IF NOT EXISTS creation_quotas (
+  bucket TEXT PRIMARY KEY NOT NULL,
+  used INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS creation_quotas_expiry ON creation_quotas(expires_at);

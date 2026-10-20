@@ -81,7 +81,7 @@ with sync_playwright() as p:
   page.locator('[data-action="timeline-confirm-remove"]').click()
   assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00']
   assert page.locator('.entry[data-occ-key$="09:15"] .status').inner_text()=='Concluído'
-  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),'Timeline overflow'
+  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Timeline overflow {w}px'
 
   page.locator('.tabbtn[data-tab="history"]').click()
   assert page.get_by_text('Medicamento teste').count()>=2

@@ -40,7 +40,6 @@
 - Atualização de esquema: coluna opcional `read_hash` na tabela `rooms`, preservando dados anteriores.
 - Sem push web confiável em segundo plano, contas por pessoa, confirmação de leitura ou trilha auditável: limites explícitos.
 
-
 ## v3.2 — otimização incremental
 
 - GET condicional retorna 304 apenas após autenticação por token, sem vazar conteúdo cifrado.

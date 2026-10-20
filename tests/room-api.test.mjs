@@ -43,7 +43,6 @@ test('room API refuses plaintext and unauthorized edits; optimistic sync handles
  r=await roomApi(await request('/api/rooms/'+a.id,'DELETE',null,a.token),env);assert.equal(r.status,200);
  r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,404);
 });
-
 test('conditional room reads save bytes without leaking access or hiding a new version',async()=>{
  const env={CARE_ROOMS:database()},a=await createCredentials(),enc=await encryptRoom(a,{version:1,items:[],settings:{theme:'dark'}});
  assert.equal((await roomApi(await request('/api/rooms','POST',{...enc,id:a.id,authHash:a.authHash,readHash:a.readHash}),env)).status,201);

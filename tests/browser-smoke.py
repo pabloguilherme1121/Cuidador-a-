@@ -34,8 +34,8 @@ with TemporaryDirectory() as temp:
             assert page.locator('#timer-display').inner_text()=='15:00'
             page.locator('[data-action="timer-preset"][data-minutes="5"]').click()
             page.locator('[data-action="timer-toggle"]').click()
-            # Wait for the observable timer deadline to advance, not a fixed wall-clock sleep.
-            # Poll the visible text without eval; the app intentionally forbids unsafe-eval via CSP.
+            # Wait for a real countdown change instead of a fixed sleep under CI load.
+            # Poll DOM text without unsafe-eval, which the CSP forbids.
             before=page.locator('#timer-display').inner_text()
             for _ in range(30):
                 if before!='05:00': break
@@ -72,21 +72,25 @@ with TemporaryDirectory() as temp:
             page.locator('#item-form button[type=submit]').click()
             page.locator('[data-action="filter"][data-filter="med"]').click()
             assert page.locator('.entry').count()==2
-            page.locator('.entry[data-occ-key$="08:00"] [data-action="timeline-edit"]').click()
+            # Edit an individual recurring medication time without changing the second one.
+            row0800=page.locator('.entry').filter(has=page.locator('.entry-time',has_text='08:00'))
+            row0800.locator('[data-action="timeline-edit"]').click()
             assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
             page.locator('#timeline-time-value').fill('09:15')
             page.locator('#timeline-time-form button[type=submit]').click()
             assert page.locator('.entry-time').all_inner_texts()==['09:15','20:00']
-            page.locator('.entry[data-occ-key$="09:15"] [data-action="toggle"]').click()
+            # Mark a completed occurrence, then move its schedule again: history is preserved.
+            page.locator('.entry').first.locator('[data-action="toggle"]').click()
             page.locator('.entry[data-occ-key$="09:15"] [data-action="timeline-edit"]').click()
             page.locator('#timeline-time-value').fill('10:00')
             page.locator('#timeline-time-form button[type=submit]').click()
             assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00','20:00']
             page.locator('.entry[data-occ-key$="20:00"] [data-action="timeline-remove"]').click()
+            assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
             page.locator('[data-action="timeline-confirm-remove"]').click()
             assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00']
             assert page.locator('.entry[data-occ-key$="09:15"] .status').inner_text()=='Concluído'
-            assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),'Timeline overflow'
+            assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Timeline overflow at {width}px'
 
             page.locator('.tabbtn[data-tab="history"]').click()
             assert page.get_by_text('Medicamento teste').count()>=2
