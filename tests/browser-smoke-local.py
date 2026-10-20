@@ -23,7 +23,7 @@ with sync_playwright() as p:
   page.locator('#onboard-form button[type=submit]').click()
   assert page.locator('.tabbtn').count()==5
   assert page.locator('h1').count()>=1
-  if w==390:page.screenshot(path='/mnt/data/cuidadora-hoje.png',full_page=True)
+  if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-hoje.png'),full_page=True)
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
   page.get_by_role('button',name='Timer',exact=True).click()
   assert page.locator('#timer-display').inner_text()=='15:00'
@@ -68,6 +68,6 @@ with sync_playwright() as p:
   assert page.locator('#confirmDialog').evaluate('(e)=>!e.open')
   assert not errors, f'JS errors at {w}: {errors}'
   print(f'{w}px: onboarding, tabs, timer, theme, palette, legal, CRUD and search passed')
-  if w==390:page.screenshot(path='/mnt/data/cuidadora-mobile.png',full_page=True)
+  if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-mobile.png'),full_page=True)
   page.close()
  b.close()
