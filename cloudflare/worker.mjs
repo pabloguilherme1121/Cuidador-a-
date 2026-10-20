@@ -11,20 +11,23 @@ const response=(o,status=200)=>new Response(JSON.stringify(o),{status,headers:JS
 const parse=async req=>{if(Number(req.headers.get('content-length'))>145000)throw new Error('Arquivo muito grande');const s=await req.text();if(s.length>145000)throw new Error('Arquivo muito grande');return JSON.parse(s)};
 const checkOrigin=req=>{const origin=req.headers.get('Origin');return !origin||origin===new URL(req.url).origin};
 const hashToken=async token=>{const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
-async function authorized(req,authHash){const auth=req.headers.get('X-Room-Token')||'';if(!OK_HASH.test(auth))return false;const digest=await hashToken(auth);let diff=0;for(let i=0;i<43;i++)diff|=digest.charCodeAt(i)^authHash.charCodeAt(i);return diff===0}
+async function authorized(req,authHash,header='X-Room-Token'){const auth=req.headers.get(header)||'';if(!OK_HASH.test(auth))return false;const digest=await hashToken(auth);let diff=0;for(let i=0;i<43;i++)diff|=digest.charCodeAt(i)^authHash.charCodeAt(i);return diff===0}
 export async function roomApi(req,env){
  if(!env.CARE_ROOMS)return response({error:'Salas temporariamente indisponíveis'},503);
  if(!checkOrigin(req))return response({error:'Origem não autorizada'},403);
  const url=new URL(req.url),path=url.pathname;
  if(path==='/api/rooms'&&req.method==='POST'){
   let data;try{data=await parse(req)}catch{return response({error:'Formato inválido ou muito grande'},400)}
-  if(!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
-  try{await env.CARE_ROOMS.prepare('INSERT INTO rooms (id,auth_hash,iv,ciphertext,version,updated_at) VALUES (?,?,?,?,1,?)').bind(data.id,data.authHash,data.iv,data.ciphertext,Date.now()).run();return response({version:1},201)}catch{return response({error:'Não foi possível criar a sala'},409)}
+  if(!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!OK_HASH.test(data.readHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
+  try{await env.CARE_ROOMS.prepare('INSERT INTO rooms (id,auth_hash,read_hash,iv,ciphertext,version,updated_at) VALUES (?,?,?,?,?,1,?)').bind(data.id,data.authHash,data.readHash,data.iv,data.ciphertext,Date.now()).run();return response({version:1},201)}catch{return response({error:'Não foi possível criar a sala'},409)}
  }
  const match=/^\/api\/rooms\/([\w-]{22})$/.exec(path);if(!match)return response({error:'Não encontrado'},404);
- const id=match[1],row=await env.CARE_ROOMS.prepare('SELECT id,auth_hash,iv,ciphertext,version,updated_at FROM rooms WHERE id=?').bind(id).first();
+ const id=match[1],row=await env.CARE_ROOMS.prepare('SELECT id,auth_hash,read_hash,iv,ciphertext,version,updated_at FROM rooms WHERE id=?').bind(id).first();
  if(!row)return response({error:'Sala não encontrada'},404);
- if(req.method==='GET')return response({version:row.version,iv:row.iv,ciphertext:row.ciphertext,updatedAt:row.updated_at});
+ if(req.method==='GET'){
+  if(row.read_hash&&!await authorized(req,row.read_hash,'X-Room-Read-Token')&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
+  return response({version:row.version,iv:row.iv,ciphertext:row.ciphertext,updatedAt:row.updated_at});
+ }
  if(!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
  if(req.method==='DELETE'){await env.CARE_ROOMS.prepare('DELETE FROM rooms WHERE id=? AND auth_hash=?').bind(id,row.auth_hash).run();return response({deleted:true})}
  if(req.method==='PUT'){

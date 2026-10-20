@@ -12,7 +12,7 @@ function database(){
     async run(){
      if(sql.startsWith('INSERT')){
       if(rows.has(args[0]))throw Error('duplicate');
-      rows.set(args[0],{id:args[0],auth_hash:args[1],iv:args[2],ciphertext:args[3],version:1,updated_at:args[4]});
+      rows.set(args[0],{id:args[0],auth_hash:args[1],read_hash:args[2],iv:args[3],ciphertext:args[4],version:1,updated_at:args[5]});
       return {meta:{changes:1}};
      }
      if(sql.startsWith('UPDATE')){
@@ -27,13 +27,17 @@ function database(){
  }};
 }
 const base='https://example.com';
-async function request(path,method='GET',json=null,token){const headers={'Content-Type':'application/json','Origin':base};if(token)headers['X-Room-Token']=token;return new Request(base+path,{method,headers,body:json?JSON.stringify(json):undefined})}
+async function request(path,method='GET',json=null,token,readToken){const headers={'Content-Type':'application/json','Origin':base};if(token)headers['X-Room-Token']=token;if(readToken)headers['X-Room-Read-Token']=readToken;return new Request(base+path,{method,headers,body:json?JSON.stringify(json):undefined})}
 test('room API refuses plaintext and unauthorized edits; optimistic sync handles conflicts',async()=>{
  const env={CARE_ROOMS:database()},a=await createCredentials(),enc=await encryptRoom(a,{version:1,items:[],settings:{theme:'dark'}});
  assert.equal(isValidEnvelope({...enc,title:'secret'}),true);
- let r=await roomApi(await request('/api/rooms','POST',{...enc,id:a.id,authHash:a.authHash}),env);assert.equal(r.status,201);
- r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,200);assert.equal((await r.json()).version,1);
+ let r=await roomApi(await request('/api/rooms','POST',{...enc,id:a.id,authHash:a.authHash,readHash:a.readHash}),env);assert.equal(r.status,201);
+ r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,403);
+ r=await roomApi(await request('/api/rooms/'+a.id,'GET',null,null,'invalid-token'),env);assert.equal(r.status,403);
+ r=await roomApi(await request('/api/rooms/'+a.id,'GET',null,null,a.readToken),env);assert.equal(r.status,200);assert.equal((await r.json()).version,1);
  r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},'bad'),env);assert.equal(r.status,403);
+ r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.readToken),env);assert.equal(r.status,403);
+ r=await roomApi(await request('/api/rooms/'+a.id,'DELETE',null,a.readToken),env);assert.equal(r.status,403);
  r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.token),env);assert.equal(r.status,200);
  r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.token),env);assert.equal(r.status,409);
  r=await roomApi(await request('/api/rooms/'+a.id,'DELETE',null,a.token),env);assert.equal(r.status,200);

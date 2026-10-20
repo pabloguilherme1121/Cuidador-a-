@@ -49,18 +49,16 @@ Consulte `docs/AUDITORIA_v2.2.md` para o nível do projeto, evidências de teste
 
 **v2.2:** proteção padrão de dados em notificações, lembretes que atravessam meia-noite e SW v4 com network-first para código.
 
-## Repositório e hospedagem
+## Repositório GitHub de destino
 
-- Fonte: https://github.com/pabloguilherme1121/Cuidador-a-
-- PWA: https://cuidadora-pwa.pabloguui21.workers.dev/
-- Cloudflare Workers Free + D1 Free (salas opt-in).
-- O deploy do Worker é manual, fixado ao SHA de um commit revisado; GitHub Actions valida os commits.
+O código está em **https://github.com/pabloguilherme1121/Cuidador-a-**. A hospedagem vigente usa Workers Free: https://cuidadora-pwa.pabloguui21.workers.dev/. O serviço Pages ainda não está integrado por Git devido a um problema na autorização da instalação Cloudflare/GitHub. A API de salas utiliza D1 Free e exige um token para consultar salas novas; links de edição utilizam outro token.
 
-## v3 — Sala de Pacientes opcional
 
-- Ao criar sala, um link não adivinhável dá leitura e edição das rotinas configuradas em outros aparelhos; não distribua publicamente.
+## v3.1 — Sala de Pacientes e convites por permissão
+
+- Ao criar sala, dois links separados permitem visualização ou edição das rotinas configuradas em outros aparelhos; não distribua publicamente. O link de edição contém um segredo aleatório separado da chave de leitura.
 - Históricos de conclusão e nome pessoal ficam locais.
 - Backend Cloudflare Worker (`cloudflare/worker.mjs`) com D1 (`cloudflare/schema.sql`), versionamento otimista, exclusão e autorização por token derivado sem compartilhar chave de descriptografia.
 - Sons suave/sinos/pulsos, volume, vibração opcional, confirmação para apagar em lote, 6 abas responsivas.
-- Deploy Worker pinado a SHA do GitHub. Não é deploy automático nem Cloudflare Pages.
+- Deploy Worker pinado a SHA do GitHub. Não é deploy automático nem Cloudflare Pages. Alterações são publicadas só após build, CI e atualização manual do commit fixado.
 - Veja [avaliação técnica v3](docs/AVALIACAO_v3.md).

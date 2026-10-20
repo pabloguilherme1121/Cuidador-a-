@@ -83,3 +83,11 @@ html,body,#app{max-width:100%;overflow-x:clip}
 button[data-action='room-copy']{min-height:48px}
 @media (max-width:360px){.tabbar-inner{gap:0}.tabbtn{font-size:.54rem}.tabbtn svg{width:17px;height:17px}.tabbar{padding:8px 3px calc(9px + env(safe-area-inset-bottom))}.room-hero{padding:16px}.room-symbol{width:46px;height:46px;flex-basis:46px}.entry{gap:7px}.entry-right{min-width:44px}.entry-icon{flex-basis:36px;height:36px}}
 @media (min-width:740px){.tabbar-inner{display:flex;max-width:990px}.tabbtn{font-size:.81rem;padding:0 13px}.room-page{max-width:720px;margin:auto}}
+
+/* v3.1: permission identity, compact invite controls, safe taps. */
+.room-role{display:inline-flex;align-items:center;gap:9px;padding:9px 13px;border-radius:999px;background:var(--tint);color:var(--fg);font-size:.79rem;font-weight:700;margin-bottom:15px}
+.room-page .inline-actions{align-items:stretch}.room-page .inline-actions .btn{min-height:48px;overflow-wrap:anywhere}
+.room-link{justify-content:flex-start;gap:10px;min-height:57px}.room-link span{min-width:0;overflow-wrap:anywhere}
+.tabbar-inner{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media(max-width:390px){.tabbtn{font-size:clamp(.52rem,2.25vw,.65rem)}.room-page .inline-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-page .inline-actions button{padding-inline:7px}}
+@media(max-width:350px){.room-page .inline-actions{grid-template-columns:1fr}.room-page .inline-actions button{width:100%}}

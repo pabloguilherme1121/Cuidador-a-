@@ -11,4 +11,7 @@ Os dados são locais. O usuário deve proteger o dispositivo e os arquivos de ex
 
 ## Compartilhamento
 
-Links de Sala concedem acesso de leitura e edição a qualquer pessoa que os possuir. O titular deve compartilhá-los apenas com responsáveis autorizados, conferir horários alterados e não depender da sincronização ou de alarmes web como único meio de administração de medicamentos. A função exige internet e está sujeita aos limites do plano gratuito.
+Links de Sala podem conceder visualização ou edição, conforme o convite. Ambos revelam os dados de saúde a quem os possuir. O titular deve compartilhá-los apenas com responsáveis autorizados, conferir horários alterados e não depender da sincronização ou de alarmes web como único meio de administração de medicamentos. A função exige internet e está sujeita aos limites do plano gratuito.
+
+
+A função “Revogar links” cria outra sala e invalida todos os acessos à anterior, mas não remove informações já copiadas para aparelhos ou backups. Não é uma plataforma clínica com identidade individual e auditoria de acesso.

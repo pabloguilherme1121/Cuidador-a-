@@ -30,3 +30,12 @@
 - HTTPS real, GET/POST/PUT/DELETE no Worker + D1, teste de criptografia de ponta a ponta
 - Testes Firefox/WebKit/Android físico recomendados antes de uso com medicamentos críticos
 - Nunca compartilhar informações pessoais dos pacientes em logs, erros ou links de exemplo
+
+## v3.1 — autorização e revogação
+
+- Convite **somente leitura** dá chave criptográfica para ver os dados, mas **não** o segredo independente de edição. GET nas salas novas exige token de leitura. PUT e DELETE exigem token de edição.
+- Convite **editor** pode alterar e revogar; o aplicativo impede que um visualizador modifique os horários compartilhados.
+- O titular pode revogar **todos os convites**, criando uma sala nova e excluindo a antiga; isso não apaga cópias locais nem revoga pessoas individualmente.
+- Salas v3 anteriores continuam acessíveis ao editor já vinculado naquele navegador. Convites antigos de duas partes entram em modo de visualização. A migração é por revogação e criação da nova sala.
+- Atualização de esquema: coluna opcional `read_hash` na tabela `rooms`, preservando dados anteriores.
+- Sem push web confiável em segundo plano, contas por pessoa, confirmação de leitura ou trilha auditável: limites explícitos.
