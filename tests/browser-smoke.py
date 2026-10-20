@@ -35,8 +35,12 @@ with TemporaryDirectory() as temp:
             page.locator('[data-action="timer-preset"][data-minutes="5"]').click()
             page.locator('[data-action="timer-toggle"]').click()
             # Wait for the observable timer deadline to advance, not a fixed wall-clock sleep.
-            page.wait_for_function("document.getElementById('timer-display')?.textContent !== '05:00'",timeout=6000)
+            # Poll the visible text without eval; the app intentionally forbids unsafe-eval via CSP.
             before=page.locator('#timer-display').inner_text()
+            for _ in range(30):
+                if before!='05:00': break
+                page.wait_for_timeout(200)
+                before=page.locator('#timer-display').inner_text()
             assert before!='05:00', f'Timer not counting at {width}px'
             page.reload(wait_until='load')
             page.locator('.tabbtn[data-tab="timer"]').click()
