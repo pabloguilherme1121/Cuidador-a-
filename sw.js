@@ -1,6 +1,6 @@
 // No personal routine data is sent to or cached by this Service Worker.
-const CACHE='cuidadora-cache-v4';
-const ASSETS=['./','./index.html','./styles.css','./app.js','./core.mjs','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png'];
+const CACHE='cuidadora-cache-v5';
+const ASSETS=['./','./index.html','./styles.css','./app.js','./core.mjs','./room.mjs','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png'];
 // Always seek fresh executable assets; if there is no connection, use the offline copy.
 const NETWORK_FIRST=new Set(['index.html','app.js','core.mjs','styles.css','manifest.webmanifest']);
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
@@ -24,6 +24,8 @@ self.addEventListener('fetch',event=>{
  const req=event.request;
  if(req.method!=='GET'||new URL(req.url).origin!==location.origin)return;
  const path=new URL(req.url).pathname;
+ // Never cache room API responses (even ciphertext). Offline edits remain local.
+ if(path.startsWith('/api/'))return;
  const asset=path.split('/').pop();
  if(req.mode==='navigate'||NETWORK_FIRST.has(asset)){
   event.respondWith(networkFirst(req));

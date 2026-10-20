@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS rooms (
+  id TEXT PRIMARY KEY NOT NULL,
+  auth_hash TEXT NOT NULL,
+  iv TEXT NOT NULL,
+  ciphertext TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL
+);

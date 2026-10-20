@@ -4,8 +4,9 @@ ROOT=Path(__file__).resolve().parents[1]
 html=(ROOT/'index.html').read_text()
 html=html.replace('<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; connect-src \'self\'; base-uri \'self\'; object-src \'none\'; frame-ancestors \'none\'" />','').replace('<script src="./app.js" type="module"></script>','').replace('<link rel="stylesheet" href="./styles.css" />','')
 app=(ROOT/'app.js').read_text()
-assert app.startswith('import {') and "from './core.mjs';" in app.split('\n',1)[0], 'Changed source import needs test harness update'
-app=app.split('\n',1)[1]
+assert app.startswith('import {')
+app=app.split('\n',2)[2]
+room=(ROOT/'room.mjs').read_text().replace('export ','')
 core=(ROOT/'core.mjs').read_text().replace('export ','')
 with sync_playwright() as p:
  b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
@@ -17,13 +18,14 @@ with sync_playwright() as p:
   page.evaluate('''() => { const db=new Map(); Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)}}); }''')
   page.add_style_tag(content=(ROOT/'styles.css').read_text())
   page.add_script_tag(content=core)
+  page.add_script_tag(content=room)
   page.add_script_tag(content=app)
   assert not errors, f'JS error on {w}px: {errors}'
   assert page.locator('h1').count()>=1, f'No heading at {w}'
   page.locator('#onboard-form button[type=submit]').click()
-  assert page.locator('.tabbtn').count()==5
+  assert page.locator('.tabbtn').count()==6
   assert page.locator('h1').count()>=1
-  if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-hoje.png'),full_page=True)
+  if w==390:page.screenshot(path='/mnt/data/cuidadora-hoje.png',full_page=True)
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
   page.get_by_role('button',name='Timer',exact=True).click()
   assert page.locator('#timer-display').inner_text()=='15:00'
@@ -32,8 +34,12 @@ with sync_playwright() as p:
   page.locator('[data-action="timer-toggle"]').click()
   assert page.locator('[data-action="timer-toggle"]').count()==1
   page.locator('[data-action="timer-reset"]').click()
+  page.locator('.tabbtn[data-tab="room"]').click()
+  assert page.get_by_text('Sala de Pacientes').count()>0
   page.locator('.tabbtn[data-tab="settings"]').click()
   assert page.locator('h1').inner_text()=='Personalização'
+  assert page.locator('#sound-preset').count()==1
+  assert page.locator('#vibration-choice').count()==1
   assert page.locator('#private-notification-choice').is_checked(), 'Private lock-screen notifications must default to enabled'
   page.locator('[data-action="accent"][data-accent="ocean"]').click()
   assert page.evaluate('document.documentElement.dataset.accent')=='ocean'
@@ -68,6 +74,6 @@ with sync_playwright() as p:
   assert page.locator('#confirmDialog').evaluate('(e)=>!e.open')
   assert not errors, f'JS errors at {w}: {errors}'
   print(f'{w}px: onboarding, tabs, timer, theme, palette, legal, CRUD and search passed')
-  if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-mobile.png'),full_page=True)
+  if w==390:page.screenshot(path='/mnt/data/cuidadora-mobile.png',full_page=True)
   page.close()
  b.close()

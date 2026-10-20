@@ -28,7 +28,7 @@ with TemporaryDirectory() as temp:
             assert response.status==200, f'HTTP {response.status} at {url}'
             assert page.locator('h1').count(), 'No heading at first load'
             page.locator('#onboard-form button[type=submit]').click()
-            assert page.locator('.tabbtn').count()==5
+            assert page.locator('.tabbtn').count()==6
             assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {width}px'
             page.locator('.tabbtn[data-tab="timer"]').click()
             assert page.locator('#timer-display').inner_text()=='15:00'
@@ -77,7 +77,7 @@ with TemporaryDirectory() as temp:
                 page.wait_for_function('navigator.serviceWorker.controller !== null',timeout=12000)
                 context.set_offline(True)
                 page.reload(wait_until='load')
-                assert page.locator('.tabbtn').count()==5,'Offline content unavailable'
+                assert page.locator('.tabbtn').count()==6,'Offline content unavailable'
                 page.locator('.tabbtn[data-tab="routine"]').click()
                 assert page.get_by_text('Almoço teste').count()>0,'Local data not available offline'
                 context.set_offline(False)

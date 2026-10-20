@@ -1,6 +1,6 @@
-# Cuidador(a) 2.2 — PWA de refeições, medicamentos e lembretes
+# Cuidador(a) 3.0 — PWA de refeições, medicamentos e lembretes
 
-Aplicativo mobile-first em português do Brasil, instalável e que funciona offline após carregar uma vez. **Dados de cuidados ficam no próprio navegador** nesta versão, sem login e sem backend ativo.
+Aplicativo mobile-first e PWA em português do Brasil, offline após uma primeira visita. **Por padrão os dados ficam no navegador.** A Sala de Pacientes opcional sincroniza apenas rotinas e preferências com criptografia local AES-GCM, sem expor detalhes à Cloudflare D1.
 
 ## Recursos
 - Refeições e medicamentos com horários e dias da semana configuráveis (nenhum medicamento fictício).
@@ -49,17 +49,18 @@ Consulte `docs/AUDITORIA_v2.2.md` para o nível do projeto, evidências de teste
 
 **v2.2:** proteção padrão de dados em notificações, lembretes que atravessam meia-noite e SW v4 com network-first para código.
 
-## Publicação atual (20/10/2026)
+## Repositório e hospedagem
 
-- **Site HTTPS online:** https://cuidadora-pwa.pabloguui21.workers.dev/
-- **GitHub:** https://github.com/pabloguilherme1121/Cuidador-a-
-- **Código publicado:** commit imutável `a407b4adb7013723f4398fb41ff7923e9617b4da`, aprovado no CI GitHub Actions.
-- **Hospedagem temporária:** Cloudflare Workers no subdomínio `workers.dev`, usando apenas requisições públicas de arquivos estáticos do GitHub fixadas no commit validado. O Worker não recebe dados de medicamentos, que ficam no armazenamento local do navegador.
-- **Git:** ainda **não** há deploy automático: mudanças na `main` não são publicadas até atualizar o commit fixado no Worker. O workflow `smoke-producao.yml` verifica o endereço HTTPS, mas não realiza deploy.
-- **Cloudflare Pages:** integração GitHub ficou bloqueada por erro de instalação/autorização da Cloudflare (HTTP 401, código 8000011). Reconectar a integração GitHub em Workers & Pages permite tentar novamente. Não foi criado projeto Pages.
-- **Custo:** implantação sem contratação de serviço pago. Workers Free permanece sujeito aos limites de uso do plano.
-- **Atenção à migração de domínio:** dados em `localStorage` não migram automaticamente de `workers.dev` para `pages.dev`. Exporte backup JSON no site antigo e importe no novo antes de deixar de usar o antigo.
-- **Cuidados:** não usar os avisos do navegador como único método para medicamentos críticos. Alarmes confiáveis com o app fechado ainda dependem do calendário nativo ou de uma infraestrutura adicional que não foi ativada.
+- Fonte: https://github.com/pabloguilherme1121/Cuidador-a-
+- PWA: https://cuidadora-pwa.pabloguui21.workers.dev/
+- Cloudflare Workers Free + D1 Free (salas opt-in).
+- O deploy do Worker é manual, fixado ao SHA de um commit revisado; GitHub Actions valida os commits.
 
-A configuração sugerida para uma futura migração ao Cloudflare Pages Free é: GitHub `pabloguilherme1121/Cuidador-a-`, branch `main`, build `npm ci --ignore-scripts && npm run build`, saída `dist`.
+## v3 — Sala de Pacientes opcional
 
+- Ao criar sala, um link não adivinhável dá leitura e edição das rotinas configuradas em outros aparelhos; não distribua publicamente.
+- Históricos de conclusão e nome pessoal ficam locais.
+- Backend Cloudflare Worker (`cloudflare/worker.mjs`) com D1 (`cloudflare/schema.sql`), versionamento otimista, exclusão e autorização por token derivado sem compartilhar chave de descriptografia.
+- Sons suave/sinos/pulsos, volume, vibração opcional, confirmação para apagar em lote, 6 abas responsivas.
+- Deploy Worker pinado a SHA do GitHub. Não é deploy automático nem Cloudflare Pages.
+- Veja [avaliação técnica v3](docs/AVALIACAO_v3.md).

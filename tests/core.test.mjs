@@ -50,3 +50,9 @@ test('reminder window has 60 seconds at exact schedule and respects disabled off
  assert.equal(isReminderWindow(at+60_000,at,0),false);
  assert.equal(isReminderWindow(at-60_000,at,0),false);
 });
+test('sound profiles, volume and vibration preferences are whitelisted',()=>{
+ const a=normalizePreferences({soundPreset:'pulse',volume:55,vibration:true});
+ assert.equal(a.soundPreset,'pulse');assert.equal(a.volume,55);assert.equal(a.vibration,true);
+ const b=normalizePreferences({soundPreset:'unknown',volume:999,vibration:'yes'});
+ assert.equal(b.soundPreset,'soft');assert.equal(b.volume,30);assert.equal(b.vibration,false);
+});

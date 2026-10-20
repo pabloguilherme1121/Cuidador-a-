@@ -27,3 +27,8 @@ Antes de oferecer sincronização hospedada a terceiros, o operador deverá publ
 ### Avisos e notificações da tela bloqueada
 
 Por padrão, os avisos do sistema exibem apenas um lembrete genérico e o horário, **sem o nome nem a dose do medicamento**, para diminuir a divulgação acidental para terceiros próximos do aparelho. Você pode desativar essa proteção em Ajustes, se quiser. A mensagem exibida dentro do aplicativo contém os detalhes porque já está na tela do aplicativo. Os dados não são criptografados em repouso no armazenamento do navegador; proteja a tela e a conta do dispositivo.
+
+
+## Sala de Pacientes (v3, opcional)
+
+Ao optar pela Sala, você envia à Cloudflare somente dados criptografados sobre horários, medicamentos e preferências. O segredo de acesso não é enviado ao servidor e fica na parte fragmento (`#`) do link e no armazenamento deste dispositivo. Qualquer pessoa com o link poderá decifrar e editar essas rotinas. Não envie o link em locais públicos. O servidor mantém os dados cifrados até você excluir a sala ou o serviço ser encerrado. Excluir a sala não apaga cópias ou backups já feitos por terceiros. O nome do perfil, histórico de conclusão e avisos disparados não são compartilhados. Esse recurso não substitui prontuário médico nem controle de acesso por usuário.

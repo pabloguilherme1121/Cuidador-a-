@@ -58,3 +58,28 @@ input[type=search]{width:100%;padding:12px 15px;border:1px solid var(--line);bac
 @media (max-width:360px){.tabbar{padding-left:4px;padding-right:4px}.tabbtn{font-size:.60rem}.tabbtn svg{width:18px;height:18px}.timer-custom{grid-template-columns:1fr}}
 @media (min-width:740px){.tabbar-inner{grid-template-columns:none;display:flex}.tabbtn{font-size:.81rem}}
 @media(prefers-reduced-motion:reduce){.hero,.timer-ring{transition:none!important}}
+
+/* v3 — 6 useful tabs, secure sharing, overflow resilience, enhanced dark palette. */
+html,body,#app{max-width:100%;overflow-x:clip}
+.app-frame,.entry,.panel,.room-page,.fieldrow{min-width:0}
+.tabbar-inner{grid-template-columns:repeat(6,minmax(0,1fr));max-width:670px;gap:2px}
+.tabbtn{font-size:.64rem;min-width:0;padding:2px 0;white-space:nowrap}
+.tabbtn svg{flex-shrink:0}
+:root[data-theme=dark]{--bg:#101b18;--panel:#1b2b26;--line:#334940;--muted:#bbd1c6;--shadow:0 18px 45px -30px #010705e0}
+.room-page{display:grid;gap:15px;padding-bottom:10px}
+.room-hero{display:flex;align-items:center;gap:15px;padding:23px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(140deg,var(--tint),var(--panel));min-width:0}
+.room-hero strong{font-size:1.1rem;overflow-wrap:anywhere}
+.room-hero p{margin:7px 0 0;font-size:.84rem;color:var(--muted)}
+.room-symbol{width:56px;height:56px;flex:0 0 56px;display:grid;place-items:center;background:var(--primary);color:var(--primaryText);border-radius:20px}
+.room-page .setting-card{margin:0}
+.room-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:.82rem;padding:15px 0}
+.room-link{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px dashed var(--strokeAccent);background:var(--tint);color:var(--fg);padding:16px;border-radius:13px;margin:12px 0;font-size:.85rem;font-weight:700;overflow-wrap:anywhere}
+.room-page button{white-space:normal;text-align:center;min-width:0}
+.room-page .inline-actions button{flex:1 1 130px}
+.entry,.routine-card,.timer-panel{overflow-wrap:anywhere}
+.entry-right{min-width:49px}
+.entry-time{white-space:nowrap}
+#timer-display{font-feature-settings:'tnum' 1}
+button[data-action='room-copy']{min-height:48px}
+@media (max-width:360px){.tabbar-inner{gap:0}.tabbtn{font-size:.54rem}.tabbtn svg{width:17px;height:17px}.tabbar{padding:8px 3px calc(9px + env(safe-area-inset-bottom))}.room-hero{padding:16px}.room-symbol{width:46px;height:46px;flex-basis:46px}.entry{gap:7px}.entry-right{min-width:44px}.entry-icon{flex-basis:36px;height:36px}}
+@media (min-width:740px){.tabbar-inner{display:flex;max-width:990px}.tabbtn{font-size:.81rem;padding:0 13px}.room-page{max-width:720px;margin:auto}}

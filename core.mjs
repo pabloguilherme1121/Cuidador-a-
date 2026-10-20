@@ -7,7 +7,7 @@ export function normalizePreferences(p={}) {
  const scale=['normal','large','xlarge'].includes(p?.scale)?p.scale:'normal';
  const density=['comfortable','compact'].includes(p?.density)?p.density:'comfortable';
  const lead=[0,5,10,15,30].includes(Number(p?.lead))?Number(p.lead):0;
- return {theme,accent,scale,density,lead,sound:p?.sound===true,reminders:p?.reminders===true,weekStart:p?.weekStart===0?0:1,quietStart:validTime(p?.quietStart)?p.quietStart:'22:00',quietEnd:validTime(p?.quietEnd)?p.quietEnd:'07:00',quiet:p?.quiet===true,privateNotifications:p?.privateNotifications!==false};
+ return {theme,accent,scale,density,lead,soundPreset:['soft','chime','pulse'].includes(p?.soundPreset)?p.soundPreset:'soft',volume:[15,30,55].includes(Number(p?.volume))?Number(p.volume):30,vibration:p?.vibration===true,sound:p?.sound===true,reminders:p?.reminders===true,weekStart:p?.weekStart===0?0:1,quietStart:validTime(p?.quietStart)?p.quietStart:'22:00',quietEnd:validTime(p?.quietEnd)?p.quietEnd:'07:00',quiet:p?.quiet===true,privateNotifications:p?.privateNotifications!==false};
 }
 export function formatCountdown(n) {if(n<=0)return 'Agora';const hours=Math.floor(n/60),mins=n%60;return hours?`${hours}h${mins?' '+mins+'min':''}`:`${mins} min`;}
 export function alarmDue(scheduledMinute,currentMinute,lead=0){return currentMinute>=scheduledMinute-lead&&currentMinute<=scheduledMinute&&currentMinute>=0&&currentMinute<1440;}

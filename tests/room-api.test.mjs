@@ -1,0 +1,41 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {roomApi,isValidEnvelope} from '../cloudflare/worker.mjs';
+import {createCredentials,encryptRoom} from '../room.mjs';
+
+function database(){
+ const rows=new Map();
+ return {prepare(sql){
+   let args;
+   return {
+    bind(...p){args=p;return this;},
+    async first(){return rows.get(args[0])||null;},
+    async run(){
+     if(sql.startsWith('INSERT')){
+      if(rows.has(args[0]))throw Error('duplicate');
+      rows.set(args[0],{id:args[0],auth_hash:args[1],iv:args[2],ciphertext:args[3],version:1,updated_at:args[4]});
+      return {meta:{changes:1}};
+     }
+     if(sql.startsWith('UPDATE')){
+      const r=rows.get(args[3]);
+      if(!r||r.version!==args[4])return {meta:{changes:0}};
+      Object.assign(r,{iv:args[0],ciphertext:args[1],version:r.version+1});
+      return {meta:{changes:1}};
+     }
+     if(sql.startsWith('DELETE'))return {meta:{changes:rows.delete(args[0])?1:0}};
+    }
+   };
+ }};
+}
+const base='https://example.com';
+async function request(path,method='GET',json=null,token){const headers={'Content-Type':'application/json','Origin':base};if(token)headers['X-Room-Token']=token;return new Request(base+path,{method,headers,body:json?JSON.stringify(json):undefined})}
+test('room API refuses plaintext and unauthorized edits; optimistic sync handles conflicts',async()=>{
+ const env={CARE_ROOMS:database()},a=await createCredentials(),enc=await encryptRoom(a,{version:1,items:[],settings:{theme:'dark'}});
+ assert.equal(isValidEnvelope({...enc,title:'secret'}),true);
+ let r=await roomApi(await request('/api/rooms','POST',{...enc,id:a.id,authHash:a.authHash}),env);assert.equal(r.status,201);
+ r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,200);assert.equal((await r.json()).version,1);
+ r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},'bad'),env);assert.equal(r.status,403);
+ r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.token),env);assert.equal(r.status,200);
+ r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.token),env);assert.equal(r.status,409);
+ r=await roomApi(await request('/api/rooms/'+a.id,'DELETE',null,a.token),env);assert.equal(r.status,200);
+ r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,404);
+});
