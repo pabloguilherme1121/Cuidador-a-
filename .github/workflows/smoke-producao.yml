@@ -24,7 +24,7 @@ jobs:
           curl --fail --silent --show-error --location --retry 3 --max-time 30 --output "$tmpdir/manifest.webmanifest" "$BASE_URL/manifest.webmanifest"
           grep -Fq 'Cuidador(a)' "$tmpdir/index.html"
           grep -Fq 'normalizePreferences' "$tmpdir/app.js"
-          grep -Fq 'cuidadora-cache-v4' "$tmpdir/sw.js"
+          grep -Fq 'cuidadora-cache-v5' "$tmpdir/sw.js"
           grep -Fq 'standalone' "$tmpdir/manifest.webmanifest"
           curl --fail --location --retry 3 --max-time 30 --output /dev/null "$BASE_URL/assets/icon-192.png"
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$BASE_URL/.env.example")" = '404'
