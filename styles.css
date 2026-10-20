@@ -131,3 +131,9 @@ button[data-action='room-copy']{min-height:48px}
 .chat-form button{min-height:48px}
 .chat-clear{font-size:.8rem;min-height:44px}
 @media(max-width:360px){.chat-card{padding:14px 11px}.chat-messages{padding:9px 7px}.chat-heading{flex-wrap:wrap}}
+
+/* v3.5: small-screen accessible manual refresh */
+.chat-sync{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:8px 0 12px}
+.chat-sync .help{flex:1 1 170px;min-width:0;margin:0}
+.chat-sync .btn{min-height:44px;flex:0 0 auto}
+@media(max-width:360px){.chat-sync .btn{flex:1 1 100%}}

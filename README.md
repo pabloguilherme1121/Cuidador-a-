@@ -1,94 +1,21 @@
-# Cuidador(a) 3.4 — linha do tempo editável e salas sincronizadas
+# Cuidador(a) 3.5 — PWA de rotinas e salas
+Site: https://cuidadora-pwa.pabloguui21.workers.dev/ · Código público: https://github.com/pabloguilherme1121/Cuidador-a-
 
-- **Linha do tempo:** alterar ou excluir horários diretamente no cartão do dia, sem procurar a rotina em outra tela.
-- **Alterar horário:** vale para todos os dias da rotina recorrente; não altera prescrições ou doses automaticamente.
-- **Excluir:** com vários horários, escolher entre remover apenas a ocorrência recorrente ou a rotina inteira; confirmação obrigatória.
-- **Histórico imutável:** horários já concluídos permanecem com os dados registrados na conclusão, mesmo após editar, arquivar ou excluir cadastros.
-- **Salas:** botão de sincronização e indicador de alterações pendentes ou conflitos na tela Hoje; modo somente leitura impede editar as rotinas.
-- **Segurança:** não há mesclagem silenciosa de mudanças conflitantes; convites de leitura não recebem permissões de escrita.
-- **PWA:** cache v8 com o novo módulo `timeline.mjs`, incluído na lista de arquivos públicos e no modo offline.
-- **Testes:** casos de horário duplicado/inválido, exclusão parcial/total, histórico e smoke mobile 320–844 px.
+Organizador mobile-first de refeições, medicamentos e pausas, com histórico local, backup JSON, calendário ICS, timer, personalização e PWA offline. Salas opcionais sincronizam rotinas cifradas AES-GCM; links de leitura/edição têm capacidades distintas. Chat cifrado disponível para participantes.
 
-# Cuidador(a) 3.0 — PWA de refeições, medicamentos e lembretes
+## Escala gratuita
+A Cloudflare Workers Free limita requisições a 100.000 por dia e o D1 Free tem quotas separadas de leitura/gravação. Os arquivos estáticos também passam pelo Worker. O app reduz requisições com sincronização da Sala a cada 4 minutos enquanto estiver visível, e chat adaptativo de 1 a 5 minutos com backoff e botão de atualização manual. **Milhares de usuários registrados ou instalados podem caber no plano; milhares simultâneos ou intensivos em chat não estão garantidos.** Veja docs/OPERACAO_ESCALA_FREE.md.
 
-Aplicativo mobile-first e PWA em português do Brasil, offline após uma primeira visita. **Por padrão os dados ficam no navegador.** A Sala de Pacientes opcional sincroniza apenas rotinas e preferências com criptografia local AES-GCM, sem expor detalhes à Cloudflare D1.
-
-## Recursos
-- Refeições e medicamentos com horários e dias da semana configuráveis (nenhum medicamento fictício).
-- Hoje: progresso, próximos horários, filtros prontos por tipo e por situação; marcar/desfazer.
-- Rotina: criar, editar, arquivar e excluir, além de busca por nome, notas e dose.
-- Histórico por data, com registro da hora de conclusão.
-- Timer independente com presets de 5 a 60 min, duração de 1 a 180 min, pausa e reinício.
-- Personalização de tema automático/claro/escuro, 6 paletas, fonte, densidade, início da semana, antecedência, som e horário silencioso.
-- Backup JSON, calendário recorrente ICS, notificação local via Service Worker enquanto o app está ativo, PWA offline.
-- Termos e política de privacidade incorporados, exportação de dados e exclusão local.
-- Notificações na tela bloqueada ocultam nomes de medicamentos por padrão, com opção explícita de mostrar detalhes.
-- Antecedência de lembretes respeita mudanças de dia, inclusive horários próximos à meia-noite.
-
-## Rodar
+## Execução e testes
 ```bash
-python3 -m http.server 8765
-# Abra http://localhost:8765 em um navegador
 npm ci --ignore-scripts
 npm run build
+python tests/browser-smoke-local.py
+python tests/browser-smoke.py
 ```
+O Node 22 usa node:test. O CI executa build, testes e Chromium (incluindo PWA offline). A pasta dist/ é a única saída pública de arquivos estáticos.
 
-O build é estático, sem transpile ou dependências de runtime. JavaScript moderno com módulos ES e CSS nativo. Para ambiente remoto o site deve usar HTTPS.
+## Publicação e limites
+Hospedagem atual: Cloudflare Workers Free + D1, com arquivos fixados em SHA de commit GitHub. O deploy continua manual e deve preservar o binding CARE_ROOMS e ser validado em CI e HTTPS. Não há backend de contas individuais, auditoria por cuidador nem garantia de avisos com o aplicativo fechado. **Não usar como único alarme de medicamento crítico**.
 
-## Testes
-`npm run build` executa check JS + `node:test`. O teste de navegação está em `tests/browser-smoke.py`; exige Python Playwright e Chromium instalado. O teste local em Chromium usa conteúdo injetado porque este ambiente restringe navegação de browser para HTTP local; ele **não substitui** o teste HTTP + Service Worker real em CI ou em domínio HTTPS. Execute também `python tests/browser-smoke-local.py`.
-
-## Segurança e infraestrutura
-Consulte `SECURITY.md`, `PRIVACIDADE.md`, `TERMOS.md` e `docs/INFRAESTRUTURA.md`. Existe migration Supabase preparada para contas multiusuário, mas **nenhuma sincronização nem push em segundo plano foi ativada**. A escolha foi preservar dados sensíveis até que login, consentimento e RLS sejam testados em serviço real.
-
-## Deploy gratuito e isolamento de dados
-A hospedagem recomendada é **Cloudflare Pages Free** com GitHub, `npm ci --ignore-scripts && npm run build` e saída `dist/`. Isso cria um domínio próprio `*.pages.dev`, isolando o armazenamento local de outras páginas. Veja [`docs/DEPLOY_GRATUITO.md`](docs/DEPLOY_GRATUITO.md). O CI de GitHub valida o site, mas o deploy se faz pelo Cloudflare conectado ao repositório.
-
-## Limites dos lembretes
-O navegador pode suspender timers ao fechar a aba ou bloquear notificações. No Android, notificações ativas usam `ServiceWorkerRegistration.showNotification`. Não existe agendador push remoto nesta versão. Para lembretes com app fechado, exporte o calendário e habilite alertas no app de calendário; confirme a importação e sua configuração.
-
-## Versões 2.1–2.2 — preparação de deploy gratuito
-- Timer persistido localmente com prazo absoluto, inclusive após recarregar a página; não cria notificações remotas.
-- Sincronização local de apagamento e timer entre abas abertas no mesmo navegador.
-- Testes de UI reais preparados para CI GitHub Actions: Chromium e offline sob subdiretório `/Cuidadora/` (o ambiente local bloqueou HTTP loopback).
-- Cloudflare Pages Free recomendado por isolar a origem do armazenamento local; consulte [DEPLOY_GRATUITO](docs/DEPLOY_GRATUITO.md).
-- Envio opcional do repositório Git local com `bash scripts/conectar-github.sh URL_DO_REPOSITORIO` após revisar mudanças e histórico.
-
-## Análise e aceite de produção
-
-Consulte `docs/AUDITORIA_v2.2.md` para o nível do projeto, evidências de testes e requisitos pendentes antes de ativar login, push remoto e uso crítico de medicamentos.
-
-**v2.2:** proteção padrão de dados em notificações, lembretes que atravessam meia-noite e SW v4 com network-first para código.
-
-## Repositório GitHub de destino
-
-O código está em **https://github.com/pabloguilherme1121/Cuidador-a-**. A hospedagem vigente usa Workers Free: https://cuidadora-pwa.pabloguui21.workers.dev/. O serviço Pages ainda não está integrado por Git devido a um problema na autorização da instalação Cloudflare/GitHub. A API de salas utiliza D1 Free e exige um token para consultar salas novas; links de edição utilizam outro token.
-
-
-## v3.1 — Sala de Pacientes e convites por permissão
-
-- Ao criar sala, dois links separados permitem visualização ou edição das rotinas configuradas em outros aparelhos; não distribua publicamente. O link de edição contém um segredo aleatório separado da chave de leitura.
-- Históricos de conclusão e nome pessoal ficam locais.
-- Backend Cloudflare Worker (`cloudflare/worker.mjs`) com D1 (`cloudflare/schema.sql`), versionamento otimista, exclusão e autorização por token derivado sem compartilhar chave de descriptografia.
-- Sons suave/sinos/pulsos, volume, vibração opcional, confirmação para apagar em lote, 6 abas responsivas.
-- Deploy Worker pinado a SHA do GitHub. Não é deploy automático nem Cloudflare Pages. Alterações são publicadas só após build, CI e atualização manual do commit fixado.
-- Veja [avaliação técnica v3](docs/AVALIACAO_v3.md).
-
-## Versão 3.2 — sincronização econômica e proteção contra conflitos
-
-- A Sala consulta automaticamente **apenas quando a janela está visível e o aparelho está online**; ao voltar ao app ou recuperar a conexão, verifica novamente.
-- Leituras condicionais com `If-None-Match` retornam **304 sem corpo** quando a versão remota não mudou (depois de validar a permissão de leitura). Isso reduz tráfego e não coloca dados de saúde em cache.
-- Alterações conflitantes **não são reenviadas repetidamente**: a Sala avisa do conflito e mantém os dados locais para backup. A substituição confirmada só acontece após obter e decifrar os dados do servidor; uma falha de rede não apaga a fila local.
-- Estado de sincronização e hora da última verificação aparecem na Sala. O modo leitura continua sem permissão de alterar ou excluir.
-- Ainda não existe histórico compartilhado de tomadas, alarmes em segundo plano confiáveis ou identidade individual de cuidadores. Guarde links privados e faça backup antes de resolver conflitos.
-
-## Chat cifrado da Sala (3.4)
-
-- Mensagens de texto de até 500 caracteres com apelido opcional, disponíveis na aba **Sala** quando conectado.
-- O conteúdo e o apelido são cifrados em AES-GCM no dispositivo; o servidor só guarda ciphertext, IV, identificador e hora.
-- Links **de leitura** podem visualizar a conversa; links **de edição** também podem enviar e apagar o histórico compartilhado. Não há conta individual nem moderação.
-- Atualização periódica de 15 segundos apenas quando a Sala está visível e o dispositivo está online. A tela atualiza também quando retorna ao primeiro plano.
-- Limite de 12 mensagens/minuto e conservação das últimas 200 por sala; botão de limpar conversa para todos. Apagar ou revogar uma sala elimina a conversa antiga do servidor.
-- Não existe push em segundo plano; não use o chat para avisos de urgência ou doses críticas.
-- PWA com cache de código v9 e chat disponível offline apenas para as rotinas já em cache (mensagens exigem conexão).
-- Código aberto no GitHub; publicação Cloudflare Workers Free usa commit fixado e ainda exige atualização manual do Worker por versão.
+[Privacidade](PRIVACIDADE.md) · [Segurança](SECURITY.md) · [Termos](TERMOS.md) · [Operação e escala](docs/OPERACAO_ESCALA_FREE.md)

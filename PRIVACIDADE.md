@@ -2,13 +2,13 @@
 
 Última atualização: 20/10/2026.
 
-**Responsável pelo aplicativo**: proprietário do projeto Cuidador(a). O endereço de contato público deve ser configurado pelo responsável antes do lançamento a terceiros.
+**Responsável pelo aplicativo**: proprietário do projeto Cuidador(a). O responsável deve publicar identificação, endereço de contato e política revisada antes de lançamento profissional a terceiros.
 
 ## Dados tratados
 O usuário pode fornecer voluntariamente nome, refeições, medicamentos, doses transcritas de prescrição, observações, horários e registro de conclusão. Esses dados podem revelar informações de saúde e merecem proteção reforçada.
 
 ## Onde ficam os dados
-Na versão offline-first entregue, os dados são salvos no localStorage do navegador e não são transmitidos para servidores da aplicação. Não há publicidade, analytics ou login nesta versão. Avisos locais dependem de consentimento de notificação e das capacidades do navegador. A infraestrutura de banco para contas está apenas preparada e não é utilizada pelo aplicativo.
+Por padrão, rotinas, perfil, histórico de conclusão, timer e preferências ficam no localStorage do navegador, sem criptografia local em repouso. **Ao habilitar uma Sala**, as rotinas e preferências são cifradas no navegador e guardadas na Cloudflare D1; as mensagens e apelidos do chat também são cifrados. O servidor recebe dados técnicos (identificadores, horários e conexões) e não deve receber conteúdo clínico em texto simples. Não há anúncios, analytics ou contas individuais nesta versão.
 
 ## Controle e exclusão
 O usuário pode editar e excluir horários, apagar todos os dados em Ajustes e exportar backups JSON. Limpar os dados do navegador também apaga os registros. Arquivos exportados ficam sob o controle do usuário e não são excluídos automaticamente.
@@ -17,7 +17,7 @@ O usuário pode editar e excluir horários, apagar todos os dados em Ajustes e e
 Qualquer pessoa com acesso ao perfil do navegador pode visualizar dados. O backup JSON e o calendário ICS não possuem criptografia própria. O navegador pode remover o armazenamento por políticas de dispositivo ou falta de espaço.
 
 ## Compartilhamento e retenção
-A aplicação não envia dados a terceiros; não há retenção central nesta versão. Backup e importação, quando iniciados pelo usuário, são processados localmente.
+Sem Sala, importação e exportação ocorrem localmente. Na Sala opcional há armazenamento remoto cifrado. Links podem ser repassados e cópias locais de outros aparelhos não são apagadas quando uma sala é excluída. Não há prazo automático de expiração definido.
 
 ## Base legal e contato
 Antes de oferecer sincronização hospedada a terceiros, o operador deverá publicar identificação, canal de contato, bases legais aplicáveis (incluindo dados sensíveis sob a LGPD), política de retenção, acesso/correção/exclusão e encarregado quando necessário. Este texto descreve a implementação efetiva atual, não substitui avaliação jurídica.

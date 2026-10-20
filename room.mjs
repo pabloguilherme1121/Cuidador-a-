@@ -52,3 +52,6 @@ export function roomStatusLabel({busy=false,offline=false,conflict=false,dirty=f
  if(dirty)return 'Alterações locais pendentes';
  return 'Atualizada';
 }
+
+/** Deliberate polling budget for the Workers Free tier; user actions still sync immediately. */
+export const roomRefreshIntervalMs = () => 240000;

@@ -45,3 +45,11 @@ export function reminderContent(occurrence,privateNotifications=true) {
  if(privateNotifications)return {title,body:`Você tem um horário às ${occurrence.time}. Abra o aplicativo para conferir.`};
  return {title,body:`${occurrence.title} · ${occurrence.time}`};
 }
+
+/** Distinguish overdue care from completed schedules; never claim a missed dose was taken. */
+export function todayHeroState(list=[]) {
+ if(!list.length)return {status:'empty',title:'Um dia do seu jeito',description:'Comece cadastrando sua primeira refeição ou medicamento.'};
+ if(list.every(o=>Boolean(o.doneAt)))return {status:'complete',title:'Tudo concluído por hoje!',description:'Todos os horários cadastrados foram marcados como concluídos.'};
+ if(list.some(o=>!o.doneAt&&o.status==='late'))return {status:'late',title:'Existem horários atrasados',description:'Confira as pendências na linha do tempo. Marque apenas os cuidados realmente realizados.'};
+ return {status:'pending',title:'Sua rotina ainda tem pendências',description:'Confira os horários pendentes na linha do tempo.'};
+}

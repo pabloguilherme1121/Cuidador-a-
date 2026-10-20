@@ -24,11 +24,17 @@ export async function openChatMessage(room,data){
  if(payload?.v!==1||!validChatText(payload.text)||typeof payload.author!=='string'||payload.author.length>28)throw new Error('Conteúdo da mensagem inválido.');
  return {id:data.id,author:payload.author,text:payload.text,createdAt:data.createdAt};
 }
+/** Adaptive checks protect free-tier quotas; manual refresh remains available. */
+export function chatRefreshIntervalMs({idleCycles=0,failures=0,rateLimited=false}={}){
+ if(rateLimited)return 900000;
+ if(failures>0)return Math.min(900000,60000*2**Math.min(failures,4));
+ return Math.min(300000,60000+Math.max(0,idleCycles)*60000);
+}
 export function chatMarkup(canSend){
  return `<section class="panel setting-card chat-card" aria-labelledby="chat-title">
    <div class="chat-heading"><div><h2 id="chat-title">Conversa da sala</h2><p class="help">Mensagens criptografadas. As pessoas com o link de edição podem responder.</p></div><span class="chat-lock" aria-label="Criptografia de ponta a ponta">Privado</span></div>
    <div class="chat-messages" id="chat-messages" role="log" aria-label="Mensagens da sala" aria-live="polite" aria-relevant="additions text"><p class="help">Carregando conversa…</p></div>
-   <p class="help" id="chat-status" role="status">A conversa é visível a quem possui o convite da sala.</p>
+   <div class="chat-sync"><p class="help" id="chat-status" role="status">A conversa é visível a quem possui o convite da sala.</p><button type="button" id="chat-refresh" class="btn small ghost">Atualizar mensagens</button></div>
    ${canSend?`<form id="chat-form" class="chat-form"><label for="chat-alias">Como quer aparecer</label><input id="chat-alias" name="alias" autocomplete="nickname" maxlength="28" placeholder="Ex.: Familiar"><label for="chat-text">Mensagem</label><textarea id="chat-text" name="message" maxlength="500" rows="2" required placeholder="Escreva uma mensagem para os cuidadores…"></textarea><button type="submit" class="btn primary" id="chat-send">Enviar mensagem</button></form><button class="btn ghost chat-clear" id="chat-clear" type="button">Apagar conversa para todos</button>`:`<p class="mini-flag">Este convite permite acompanhar a conversa. Para enviar mensagens, peça um link de edição ao responsável.</p>`}
    <p class="help">Evite compartilhar dados desnecessários. Alertas de novas mensagens não são garantidos com o aplicativo fechado.</p>
  </section>`;
@@ -36,7 +42,7 @@ export function chatMarkup(canSend){
 /** Mount only in Sala; stop polling when the tab is removed or browser is hidden. */
 export function mountRoomChat(element,room,{onError=()=>{}}={}){
  if(!element||!room)return ()=>{};
- let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0;
+ let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
  const alias=element.querySelector('#chat-alias');
  try{if(alias)alias.value=localStorage.getItem('cuidadora-chat-alias')||''}catch{}
@@ -56,6 +62,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   }
   if(nearBottom)box.scrollTop=box.scrollHeight;
  };
+ const schedule=()=>{clearTimeout(timer);if(!alive)return;timer=setTimeout(()=>void refresh(),chatRefreshIntervalMs({idleCycles,failures,rateLimited}));};
  const refresh=async(force=false)=>{
   if(!alive||loading||!navigator.onLine||document.visibilityState!=='visible')return;
   if(!box?.isConnected)return;
@@ -65,16 +72,17 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const full=force||++polls%6===0;
    const url=`/api/rooms/${encodeURIComponent(room.id)}/messages${cursor&&!full?'?after='+encodeURIComponent(cursor):''}`;
    const res=await fetch(url,{headers:{'X-Room-Read-Token':cred.readToken,...(cred.token?{'X-Room-Token':cred.token}:{})},cache:'no-store'});
-   if(!res.ok)throw Error(res.status===404?'Sala removida ou inacessível.':'Não foi possível consultar o chat.');
+   if(!res.ok){rateLimited=res.status===429;throw Error(res.status===404?'Sala removida ou inacessível.':rateLimited?'Limite temporário de solicitações. Aguarde para atualizar.':'Não foi possível consultar o chat.');}
    const data=await res.json();if(!Array.isArray(data.messages))throw Error('Resposta de chat inválida.');
    const incoming=[];
    for(const item of data.messages){try{incoming.push(await openChatMessage(room,item))}catch{ /* bad ciphertext is never rendered */ }}
    if(!alive)return;
    if(full){messages=[];cursor=''}
-   const ids=new Set(messages.map(x=>x.id));for(const m of incoming)if(!ids.has(m.id)){messages.push(m);ids.add(m.id)}
+   const ids=new Set(messages.map(x=>x.id));const hadNew=incoming.some(m=>!ids.has(m.id));for(const m of incoming)if(!ids.has(m.id)){messages.push(m);ids.add(m.id)}
    messages=messages.slice(-100);cursor=data.cursor||cursor;
-   paint();setStatus('Conversa sincronizada.');
-  }catch(e){setStatus('Sem conexão com o chat. Tente novamente ao voltar.');onError(e)}finally{loading=false}
+   idleCycles=hadNew?0:Math.min(10,idleCycles+1);failures=0;rateLimited=false;
+   paint();setStatus(hadNew?'Novas mensagens recebidas.':'Conversa atualizada.');
+  }catch(e){failures=Math.min(5,failures+1);setStatus(e.message||'Chat temporariamente indisponível.');onError(e)}finally{loading=false;schedule()}
  };
  const submit=async e=>{
   e.preventDefault();if(!roomCanEdit(room)||!form||form.dataset.sending==='yes')return;
@@ -98,9 +106,12 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  const clearButton=element.querySelector('#chat-clear');
  form?.addEventListener('submit',submit);
  clearButton?.addEventListener('click',clear);
- const visibility=()=>{if(document.visibilityState==='visible')void refresh()};
- document.addEventListener('visibilitychange',visibility);
- timer=setInterval(()=>void refresh(),15000);
+ const refreshButton=element.querySelector('#chat-refresh');
+ const manualRefresh=()=>{idleCycles=0;void refresh(true)};
+ const visibility=()=>{if(document.visibilityState==='visible')void refresh();else clearTimeout(timer)};
+ const onOnline=()=>void refresh();
+ refreshButton?.addEventListener('click',manualRefresh);
+ document.addEventListener('visibilitychange',visibility);window.addEventListener('online',onOnline);
  void refresh();
- return ()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
+ return ()=>{alive=false;clearTimeout(timer);window.removeEventListener('online',onOnline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
 }
