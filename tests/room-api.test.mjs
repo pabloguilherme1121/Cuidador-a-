@@ -34,7 +34,7 @@ test('room API refuses plaintext and unauthorized edits; optimistic sync handles
  let r=await roomApi(await request('/api/rooms','POST',{...enc,id:a.id,authHash:a.authHash,readHash:a.readHash}),env);assert.equal(r.status,201);
  r=await roomApi(await request('/api/rooms/'+a.id),env);assert.equal(r.status,403);
  r=await roomApi(await request('/api/rooms/'+a.id,'GET',null,null,'invalid-token'),env);assert.equal(r.status,403);
- r=await roomApi(await request('/api/rooms/'+a.id,'GET',null,null,a.readToken),env);assert.equal(r.status,200);assert.equal((await r.json()).version,1);
+ r=await roomApi(await request('/api/rooms/'+a.id,'GET',null,null,a.readToken),env);assert.equal(r.status,200);const payload=await r.json();assert.equal(payload.version,1);assert.equal(payload.legacy,false);
  r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},'bad'),env);assert.equal(r.status,403);
  r=await roomApi(await request('/api/rooms/'+a.id,'PUT',{...enc,version:1},a.readToken),env);assert.equal(r.status,403);
  r=await roomApi(await request('/api/rooms/'+a.id,'DELETE',null,a.readToken),env);assert.equal(r.status,403);

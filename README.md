@@ -62,3 +62,5 @@ O código está em **https://github.com/pabloguilherme1121/Cuidador-a-**. A hosp
 - Sons suave/sinos/pulsos, volume, vibração opcional, confirmação para apagar em lote, 6 abas responsivas.
 - Deploy Worker pinado a SHA do GitHub. Não é deploy automático nem Cloudflare Pages. Alterações são publicadas só após build, CI e atualização manual do commit fixado.
 - Veja [avaliação técnica v3](docs/AVALIACAO_v3.md).
+
+**Salas legadas:** convites v3.0 de duas partes não distinguiam edição e leitura. Antes de divulgar um link de leitura, quem gerencia a sala deve usar **Revogar links e criar novos**. Os aparelhos antigos exigem novos convites após a migração.

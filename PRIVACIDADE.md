@@ -36,3 +36,5 @@ A Sala envia à Cloudflare D1 somente uma cópia **criptografada AES-GCM** das r
 Agora há **dois convites**: visualização (permite consultar rotinas sem modificá-las no servidor) e edição (permite modificar e excluir). Ambos são confidenciais: quem possuir o link de leitura poderá conhecer horários e medicamentos. Os links não identificam usuários e não representam autorização individual de um paciente. É possível **revogar todos os convites**, criando uma nova sala criptografada com novos segredos e excluindo a anterior. Não é possível revogar apenas um aparelho sem trocar os links; quem salvou cópias locais pode mantê-las.
 
 A sincronização depende da conexão, não é instantânea e alterações simultâneas podem exigir resolução manual. **Alarmes da web não são garantidos com o aplicativo fechado**. O app não substitui sistemas clínicos, a receita médica ou o calendário nativo do celular.
+
+**Compatibilidade com v3.0:** links anteriores tinham segredos equivalentes para consulta e edição. O aplicativo bloqueia a criação de convites rotulados como apenas leitura para salas antigas. Renovar todos os convites é necessário para obter a separação real entre permissões.

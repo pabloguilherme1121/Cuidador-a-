@@ -26,7 +26,7 @@ export async function roomApi(req,env){
  if(!row)return response({error:'Sala não encontrada'},404);
  if(req.method==='GET'){
   if(row.read_hash&&!await authorized(req,row.read_hash,'X-Room-Read-Token')&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
-  return response({version:row.version,iv:row.iv,ciphertext:row.ciphertext,updatedAt:row.updated_at});
+  return response({version:row.version,iv:row.iv,ciphertext:row.ciphertext,updatedAt:row.updated_at,legacy:!row.read_hash});
  }
  if(!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
  if(req.method==='DELETE'){await env.CARE_ROOMS.prepare('DELETE FROM rooms WHERE id=? AND auth_hash=?').bind(id,row.auth_hash).run();return response({deleted:true})}
