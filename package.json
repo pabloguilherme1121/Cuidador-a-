@@ -1,11 +1,11 @@
 {
   "name": "cuidadora-pwa",
   "private": true,
-  "version": "3.2.0",
+  "version": "3.3.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/core.test.mjs tests/room.test.mjs tests/room-permissions.test.mjs tests/room-api.test.mjs tests/room-optimization.test.mjs",
-    "check": "node --check app.js && node --check core.mjs && node --check sw.js && node --check room.mjs && node --check cloudflare/worker.mjs",
+    "test": "node --test tests/core.test.mjs tests/room.test.mjs tests/room-permissions.test.mjs tests/room-api.test.mjs tests/room-optimization.test.mjs tests/timeline.test.mjs",
+    "check": "node --check app.js && node --check core.mjs && node --check sw.js && node --check room.mjs && node --check cloudflare/worker.mjs && node --check timeline.mjs",
     "build": "npm run check && npm test && npm run build:site && npm run test:site",
     "build:site": "node scripts/build-site.mjs",
     "test:site": "node --test tests/published.test.mjs"

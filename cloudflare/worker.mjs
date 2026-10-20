@@ -1,7 +1,7 @@
 /** Cloudflare Workers Free + D1: private ciphertext only. No plaintext health data on server. */
 export const SOURCE_REVISION='__PINNED_SHA__';
 const SOURCE=`https://raw.githubusercontent.com/pabloguilherme1121/Cuidador-a-/${SOURCE_REVISION}/`;
-const ASSETS=new Set(['index.html','app.js','core.mjs','room.mjs','styles.css','sw.js','manifest.webmanifest','robots.txt','assets/icon.svg','assets/icon-maskable.svg','assets/icon-192.png','assets/icon-512.png','assets/apple-touch-icon.png','assets/icon-maskable-512.png']);
+const ASSETS=new Set(['index.html','app.js','core.mjs','room.mjs','timeline.mjs','styles.css','sw.js','manifest.webmanifest','robots.txt','assets/icon.svg','assets/icon-maskable.svg','assets/icon-192.png','assets/icon-512.png','assets/apple-touch-icon.png','assets/icon-maskable-512.png']);
 const TYPES={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',mjs:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',webmanifest:'application/manifest+json; charset=utf-8',txt:'text/plain; charset=utf-8',png:'image/png',svg:'image/svg+xml; charset=utf-8'};
 const CSP="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'";
 const JSON_HEADERS={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
@@ -54,7 +54,7 @@ async function staticAsset(req){
  headers.set('X-Frame-Options','DENY');headers.set('Referrer-Policy','no-referrer');
  headers.set('Permissions-Policy','camera=(),microphone=(),geolocation=()');
  headers.set('Content-Security-Policy',CSP);headers.set('Strict-Transport-Security','max-age=31536000');
- headers.set('Cache-Control',['index.html','sw.js','app.js','room.mjs','core.mjs','styles.css'].includes(path)?'no-cache, must-revalidate':'public, max-age=600');
+ headers.set('Cache-Control',['index.html','sw.js','app.js','room.mjs','core.mjs','timeline.mjs','styles.css'].includes(path)?'no-cache, must-revalidate':'public, max-age=600');
  if(path==='sw.js')headers.set('Service-Worker-Allowed','/');
  return new Response(req.method==='HEAD'?null:upstream.body,{status:200,headers});
 }

@@ -6,8 +6,9 @@ html=(ROOT/'index.html').read_text()
 html=html.replace('<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; connect-src \'self\'; base-uri \'self\'; object-src \'none\'; frame-ancestors \'none\'" />','').replace('<script src="./app.js" type="module"></script>','').replace('<link rel="stylesheet" href="./styles.css" />','')
 app=(ROOT/'app.js').read_text()
 assert app.startswith('import {')
-app=app.split('\n',2)[2]
+app='\n'.join(line for line in app.splitlines() if not line.startswith('import '))
 room=(ROOT/'room.mjs').read_text().replace('export ','')
+timeline=(ROOT/'timeline.mjs').read_text().replace('export ','')
 core=(ROOT/'core.mjs').read_text().replace('export ','')
 with sync_playwright() as p:
  b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
@@ -20,6 +21,7 @@ with sync_playwright() as p:
   page.add_style_tag(content=(ROOT/'styles.css').read_text())
   page.add_script_tag(content=core)
   page.add_script_tag(content=room)
+  page.add_script_tag(content=timeline)
   page.add_script_tag(content=app)
   assert not errors, f'JS error on {w}px: {errors}'
   assert page.locator('h1').count()>=1, f'No heading at {w}'
@@ -65,7 +67,22 @@ with sync_playwright() as p:
   page.locator('#item-form button[type=submit]').click()
   page.locator('[data-action="filter"][data-filter="med"]').click()
   assert page.locator('.entry').count()==2
-  page.locator('[data-action="toggle"]').first.click()
+  page.locator('.entry[data-occ-key$="08:00"] [data-action="timeline-edit"]').click()
+  assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
+  page.locator('#timeline-time-value').fill('09:15')
+  page.locator('#timeline-time-form button[type=submit]').click()
+  assert page.locator('.entry-time').all_inner_texts()==['09:15','20:00']
+  page.locator('.entry[data-occ-key$="09:15"] [data-action="toggle"]').click()
+  page.locator('.entry[data-occ-key$="09:15"] [data-action="timeline-edit"]').click()
+  page.locator('#timeline-time-value').fill('10:00')
+  page.locator('#timeline-time-form button[type=submit]').click()
+  assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00','20:00']
+  page.locator('.entry[data-occ-key$="20:00"] [data-action="timeline-remove"]').click()
+  page.locator('[data-action="timeline-confirm-remove"]').click()
+  assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00']
+  assert page.locator('.entry[data-occ-key$="09:15"] .status').inner_text()=='Concluído'
+  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),'Timeline overflow'
+
   page.locator('.tabbtn[data-tab="history"]').click()
   assert page.get_by_text('Medicamento teste').count()>=2
   page.locator('.tabbtn[data-tab="settings"]').click()

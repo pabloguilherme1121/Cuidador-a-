@@ -1,3 +1,14 @@
+# Cuidador(a) 3.3 - linha do tempo editavel e salas sincronizadas
+
+- **Linha do tempo:** alterar ou excluir horarios diretamente no cartao do dia, sem procurar a rotina em outra tela.
+- **Alterar:** vale para todos os dias da rotina recorrente, sem ajustar automaticamente prescricoes ou doses.
+- **Excluir:** com varios horarios, escolher remover apenas um horario recorrente ou a rotina inteira; exige confirmacao.
+- **Historico preservado:** horarios concluidos mantem os dados da conclusao mesmo apos edicao ou exclusao.
+- **Salas:** botao de sincronizacao no Hoje, estado de alteracoes pendentes e acesso a resolucao de conflitos.
+- **Seguranca:** convites de leitura nao oferecem controles de edicao. Nao ha mesclagem silenciosa de conflitos.
+- **PWA:** cache v8 inclui timeline.mjs para uso offline.
+- **Validacao:** testes de horarios duplicados/invalidos, remocao parcial/total, historico e mobile 320-844px.
+
 # Cuidador(a) 3.0 — PWA de refeições, medicamentos e lembretes
 
 Aplicativo mobile-first e PWA em português do Brasil, offline após uma primeira visita. **Por padrão os dados ficam no navegador.** A Sala de Pacientes opcional sincroniza apenas rotinas e preferências com criptografia local AES-GCM, sem expor detalhes à Cloudflare D1.

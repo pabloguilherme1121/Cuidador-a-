@@ -97,3 +97,17 @@ button[data-action='room-copy']{min-height:48px}
 .room-meta{align-items:center;line-height:1.5}
 .room-page .room-meta strong{font-weight:750}
 @media(max-width:390px){.room-meta{flex-direction:column;align-items:flex-start}.room-page .setting-card{padding:17px 14px}.room-page .room-role{max-width:100%}}
+
+/* v3.3 - edicao e exclusao contextual da linha do tempo */
+.timeline-entry{display:block;padding:14px;min-width:0}
+.entry-head{display:flex;align-items:center;gap:10px;min-width:0}
+.entry-head .entry-info{min-width:0;flex:1}
+.entry-head .entry-right{flex:0 0 auto;min-width:48px}
+.entry-head .iconbutton{flex:0 0 44px}
+.timeline-manage{display:flex;align-items:center;gap:9px;padding-top:11px;margin-top:12px;border-top:1px solid var(--line)}
+.timeline-manage .btn{min-height:44px;flex:1 1 0;white-space:normal;min-width:0}
+.timeline-manage .timeline-delete{color:var(--terra);background:var(--terraTint);border-color:transparent}
+.timeline-sync{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0;padding:10px 12px;border-radius:16px;background:var(--tint);border:1px solid var(--line);font-size:.82rem;color:var(--fg)}
+.timeline-sync span{display:inline-flex;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere}
+.timeline-sync .btn{flex-shrink:0}
+@media(max-width:360px){.entry-head{gap:7px}.timeline-entry{padding:12px 10px}.timeline-manage{gap:6px}.timeline-manage .btn{padding:0 7px}.timeline-sync{flex-wrap:wrap}}
