@@ -34,7 +34,8 @@ with TemporaryDirectory() as temp:
             assert page.locator('#timer-display').inner_text()=='15:00'
             page.locator('[data-action="timer-preset"][data-minutes="5"]').click()
             page.locator('[data-action="timer-toggle"]').click()
-            page.wait_for_timeout(1300)
+            # Wait for the observable timer deadline to advance, not a fixed wall-clock sleep.
+            page.wait_for_function("document.getElementById('timer-display')?.textContent !== '05:00'",timeout=6000)
             before=page.locator('#timer-display').inner_text()
             assert before!='05:00', f'Timer not counting at {width}px'
             page.reload(wait_until='load')
