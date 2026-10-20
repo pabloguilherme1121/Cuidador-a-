@@ -1,0 +1,25 @@
+name: Smoke HTTPS - Cuidador(a)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verificar PWA publicado e privacidade
+        env:
+          BASE_URL: https://cuidadora-pwa.pabloguui21.workers.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --max-time 30 "$BASE_URL/" | grep -Fq 'Cuidador(a)'
+          curl --fail --location --retry 3 --max-time 30 "$BASE_URL/app.js" | grep -Fq 'normalizePreferences'
+          curl --fail --location --retry 3 --max-time 30 "$BASE_URL/sw.js" | grep -Fq 'cuidadora-cache-v4'
+          curl --fail --location --retry 3 --max-time 30 "$BASE_URL/manifest.webmanifest" | grep -Fq 'standalone'
+          curl --fail --location --retry 3 --max-time 30 --output /dev/null "$BASE_URL/assets/icon-192.png"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$BASE_URL/.env.example")" = '404'
+          echo 'PWA HTTPS, manifesto, JS, SW e proteção de arquivos privados: OK'
