@@ -1,13 +1,13 @@
-# Cuidador(a) 3.3 - linha do tempo editavel e salas sincronizadas
+# Cuidador(a) 3.4 — linha do tempo editável e salas sincronizadas
 
-- **Linha do tempo:** alterar ou excluir horarios diretamente no cartao do dia, sem procurar a rotina em outra tela.
-- **Alterar:** vale para todos os dias da rotina recorrente, sem ajustar automaticamente prescricoes ou doses.
-- **Excluir:** com varios horarios, escolher remover apenas um horario recorrente ou a rotina inteira; exige confirmacao.
-- **Historico preservado:** horarios concluidos mantem os dados da conclusao mesmo apos edicao ou exclusao.
-- **Salas:** botao de sincronizacao no Hoje, estado de alteracoes pendentes e acesso a resolucao de conflitos.
-- **Seguranca:** convites de leitura nao oferecem controles de edicao. Nao ha mesclagem silenciosa de conflitos.
-- **PWA:** cache v8 inclui timeline.mjs para uso offline.
-- **Validacao:** testes de horarios duplicados/invalidos, remocao parcial/total, historico e mobile 320-844px.
+- **Linha do tempo:** alterar ou excluir horários diretamente no cartão do dia, sem procurar a rotina em outra tela.
+- **Alterar horário:** vale para todos os dias da rotina recorrente; não altera prescrições ou doses automaticamente.
+- **Excluir:** com vários horários, escolher entre remover apenas a ocorrência recorrente ou a rotina inteira; confirmação obrigatória.
+- **Histórico imutável:** horários já concluídos permanecem com os dados registrados na conclusão, mesmo após editar, arquivar ou excluir cadastros.
+- **Salas:** botão de sincronização e indicador de alterações pendentes ou conflitos na tela Hoje; modo somente leitura impede editar as rotinas.
+- **Segurança:** não há mesclagem silenciosa de mudanças conflitantes; convites de leitura não recebem permissões de escrita.
+- **PWA:** cache v8 com o novo módulo `timeline.mjs`, incluído na lista de arquivos públicos e no modo offline.
+- **Testes:** casos de horário duplicado/inválido, exclusão parcial/total, histórico e smoke mobile 320–844 px.
 
 # Cuidador(a) 3.0 — PWA de refeições, medicamentos e lembretes
 
@@ -74,9 +74,6 @@ O código está em **https://github.com/pabloguilherme1121/Cuidador-a-**. A hosp
 - Deploy Worker pinado a SHA do GitHub. Não é deploy automático nem Cloudflare Pages. Alterações são publicadas só após build, CI e atualização manual do commit fixado.
 - Veja [avaliação técnica v3](docs/AVALIACAO_v3.md).
 
-**Salas legadas:** convites v3.0 de duas partes não distinguiam edição e leitura. Antes de divulgar um link de leitura, quem gerencia a sala deve usar **Revogar links e criar novos**. Os aparelhos antigos exigem novos convites após a migração.
-
-
 ## Versão 3.2 — sincronização econômica e proteção contra conflitos
 
 - A Sala consulta automaticamente **apenas quando a janela está visível e o aparelho está online**; ao voltar ao app ou recuperar a conexão, verifica novamente.
@@ -84,3 +81,14 @@ O código está em **https://github.com/pabloguilherme1121/Cuidador-a-**. A hosp
 - Alterações conflitantes **não são reenviadas repetidamente**: a Sala avisa do conflito e mantém os dados locais para backup. A substituição confirmada só acontece após obter e decifrar os dados do servidor; uma falha de rede não apaga a fila local.
 - Estado de sincronização e hora da última verificação aparecem na Sala. O modo leitura continua sem permissão de alterar ou excluir.
 - Ainda não existe histórico compartilhado de tomadas, alarmes em segundo plano confiáveis ou identidade individual de cuidadores. Guarde links privados e faça backup antes de resolver conflitos.
+
+## Chat cifrado da Sala (3.4)
+
+- Mensagens de texto de até 500 caracteres com apelido opcional, disponíveis na aba **Sala** quando conectado.
+- O conteúdo e o apelido são cifrados em AES-GCM no dispositivo; o servidor só guarda ciphertext, IV, identificador e hora.
+- Links **de leitura** podem visualizar a conversa; links **de edição** também podem enviar e apagar o histórico compartilhado. Não há conta individual nem moderação.
+- Atualização periódica de 15 segundos apenas quando a Sala está visível e o dispositivo está online. A tela atualiza também quando retorna ao primeiro plano.
+- Limite de 12 mensagens/minuto e conservação das últimas 200 por sala; botão de limpar conversa para todos. Apagar ou revogar uma sala elimina a conversa antiga do servidor.
+- Não existe push em segundo plano; não use o chat para avisos de urgência ou doses críticas.
+- PWA com cache de código v9 e chat disponível offline apenas para as rotinas já em cache (mensagens exigem conexão).
+- Código aberto no GitHub; publicação Cloudflare Workers Free usa commit fixado e ainda exige atualização manual do Worker por versão.

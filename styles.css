@@ -97,8 +97,7 @@ button[data-action='room-copy']{min-height:48px}
 .room-meta{align-items:center;line-height:1.5}
 .room-page .room-meta strong{font-weight:750}
 @media(max-width:390px){.room-meta{flex-direction:column;align-items:flex-start}.room-page .setting-card{padding:17px 14px}.room-page .room-role{max-width:100%}}
-
-/* v3.3 - edicao e exclusao contextual da linha do tempo */
+/* v3.3 — accessible timeline actions that never squeeze medication names on small screens */
 .timeline-entry{display:block;padding:14px;min-width:0}
 .entry-head{display:flex;align-items:center;gap:10px;min-width:0}
 .entry-head .entry-info{min-width:0;flex:1}
@@ -111,3 +110,24 @@ button[data-action='room-copy']{min-height:48px}
 .timeline-sync span{display:inline-flex;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere}
 .timeline-sync .btn{flex-shrink:0}
 @media(max-width:360px){.entry-head{gap:7px}.timeline-entry{padding:12px 10px}.timeline-manage{gap:6px}.timeline-manage .btn{padding:0 7px}.timeline-sync{flex-wrap:wrap}}
+
+/* v3.4 encrypted chat: compact, accessible, never horizontally scrolls the page. */
+.chat-card{min-width:0;overflow:hidden}
+.chat-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.chat-heading h2{margin:0 0 5px}
+.chat-heading .help{margin:0 0 12px}
+.chat-lock{color:var(--primary);background:var(--tint);font-size:.72rem;font-weight:750;padding:7px 10px;border-radius:999px;white-space:nowrap}
+.chat-messages{display:flex;flex-direction:column;gap:9px;min-height:155px;max-height:350px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:17px;background:var(--surface2);padding:13px 11px;scrollbar-gutter:stable;min-width:0}
+.chat-message{padding:11px 12px;border-radius:13px;background:var(--panel);border:1px solid var(--line);min-width:0;overflow-wrap:anywhere;box-shadow:0 2px 5px #00000008}
+.chat-message p{margin:8px 0 0;color:var(--fg);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:.89rem}
+.chat-meta{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:.74rem}
+.chat-meta strong{color:var(--primary);font-size:.8rem}
+.chat-meta time{color:var(--muted)}
+.chat-empty{color:var(--muted);font-size:.85rem;text-align:center;padding:26px 8px}
+.chat-form{display:grid;grid-template-columns:1fr;gap:8px;margin:13px 0 8px;min-width:0}
+.chat-form label{font-size:.79rem;font-weight:700}
+.chat-form input,.chat-form textarea{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;padding:12px 13px;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:13px;font:inherit;font-size:16px;resize:vertical}
+.chat-form textarea{min-height:85px;max-height:160px}
+.chat-form button{min-height:48px}
+.chat-clear{font-size:.8rem;min-height:44px}
+@media(max-width:360px){.chat-card{padding:14px 11px}.chat-messages{padding:9px 7px}.chat-heading{flex-wrap:wrap}}

@@ -15,3 +15,7 @@ Links de Sala podem conceder visualização ou edição, conforme o convite. Amb
 
 
 A função “Revogar links” cria outra sala e invalida todos os acessos à anterior, mas não remove informações já copiadas para aparelhos ou backups. Não é uma plataforma clínica com identidade individual e auditoria de acesso.
+
+## Mensagens nas Salas
+
+O chat não é um canal de emergências ou aconselhamento clínico. Convites privados dão a seus portadores acesso ao conteúdo da sala, incluindo mensagens, e convites de edição permitem enviar e apagar conversas. Não envie mensagens sensíveis além do necessário. Não há garantia de entrega instantânea nem de aviso com o aplicativo fechado.

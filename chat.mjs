@@ -1,0 +1,106 @@
+/** End-to-end encrypted room chat. All message content stays in the browser. */
+import {roomCanEdit,completeCredentials} from './room.mjs';
+const encoder=new TextEncoder(),decoder=new TextDecoder();
+const to64=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const from64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));
+const ID=/^[\w-]{16}$/;
+export const validChatText=v=>typeof v==='string'&&v.trim().length>=1&&v.trim().length<=500;
+export const validChatEnvelope=v=>Boolean(v&&ID.test(v.id||'')&&/^[\w-]{16}$/.test(v.iv||'')&&/^[\w-]{22,2500}$/.test(v.ciphertext||''));
+async function aesKey(room){return crypto.subtle.importKey('raw',from64(room.key),'AES-GCM',false,['encrypt','decrypt'])}
+export async function createChatMessage(room,{author,text}){
+ if(!room||!validChatText(text))throw new Error('Escreva uma mensagem de até 500 caracteres.');
+ const display=String(author||'Cuidador').trim().slice(0,28)||'Cuidador';
+ const id=to64(crypto.getRandomValues(new Uint8Array(12))),iv=crypto.getRandomValues(new Uint8Array(12));
+ const payload=encoder.encode(JSON.stringify({v:1,author:display,text:text.trim()}));
+ const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(`${room.id}:chat:${id}`)},await aesKey(room),payload);
+ const result={id,iv:to64(iv),ciphertext:to64(new Uint8Array(encrypted))};
+ if(!validChatEnvelope(result))throw new Error('Mensagem muito grande.');
+ return result;
+}
+export async function openChatMessage(room,data){
+ if(!validChatEnvelope(data))throw new Error('Mensagem recebida inválida.');
+ const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:from64(data.iv),additionalData:encoder.encode(`${room.id}:chat:${data.id}`)},await aesKey(room),from64(data.ciphertext));
+ const payload=JSON.parse(decoder.decode(bytes));
+ if(payload?.v!==1||!validChatText(payload.text)||typeof payload.author!=='string'||payload.author.length>28)throw new Error('Conteúdo da mensagem inválido.');
+ return {id:data.id,author:payload.author,text:payload.text,createdAt:data.createdAt};
+}
+export function chatMarkup(canSend){
+ return `<section class="panel setting-card chat-card" aria-labelledby="chat-title">
+   <div class="chat-heading"><div><h2 id="chat-title">Conversa da sala</h2><p class="help">Mensagens criptografadas. As pessoas com o link de edição podem responder.</p></div><span class="chat-lock" aria-label="Criptografia de ponta a ponta">Privado</span></div>
+   <div class="chat-messages" id="chat-messages" role="log" aria-label="Mensagens da sala" aria-live="polite" aria-relevant="additions text"><p class="help">Carregando conversa…</p></div>
+   <p class="help" id="chat-status" role="status">A conversa é visível a quem possui o convite da sala.</p>
+   ${canSend?`<form id="chat-form" class="chat-form"><label for="chat-alias">Como quer aparecer</label><input id="chat-alias" name="alias" autocomplete="nickname" maxlength="28" placeholder="Ex.: Familiar"><label for="chat-text">Mensagem</label><textarea id="chat-text" name="message" maxlength="500" rows="2" required placeholder="Escreva uma mensagem para os cuidadores…"></textarea><button type="submit" class="btn primary" id="chat-send">Enviar mensagem</button></form><button class="btn ghost chat-clear" id="chat-clear" type="button">Apagar conversa para todos</button>`:`<p class="mini-flag">Este convite permite acompanhar a conversa. Para enviar mensagens, peça um link de edição ao responsável.</p>`}
+   <p class="help">Evite compartilhar dados desnecessários. Alertas de novas mensagens não são garantidos com o aplicativo fechado.</p>
+ </section>`;
+}
+/** Mount only in Sala; stop polling when the tab is removed or browser is hidden. */
+export function mountRoomChat(element,room,{onError=()=>{}}={}){
+ if(!element||!room)return ()=>{};
+ let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0;
+ const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
+ const alias=element.querySelector('#chat-alias');
+ try{if(alias)alias.value=localStorage.getItem('cuidadora-chat-alias')||''}catch{}
+ const setStatus=text=>{if(alive&&status?.isConnected)status.textContent=text};
+ const paint=()=>{
+  if(!alive||!box?.isConnected)return;
+  const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<90;
+  box.replaceChildren();
+  if(!messages.length){const p=document.createElement('p');p.className='chat-empty';p.textContent='Nenhuma mensagem ainda. Inicie a conversa para organizar os cuidados.';box.append(p)}
+  for(const m of messages){
+   const article=document.createElement('article');article.className='chat-message';
+   const meta=document.createElement('div');meta.className='chat-meta';
+   const name=document.createElement('strong');name.textContent=m.author;
+   const date=document.createElement('time');date.dateTime=new Date(m.createdAt).toISOString();date.textContent=new Date(m.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+   meta.append(name,date);
+   const content=document.createElement('p');content.textContent=m.text;article.append(meta,content);box.append(article);
+  }
+  if(nearBottom)box.scrollTop=box.scrollHeight;
+ };
+ const refresh=async(force=false)=>{
+  if(!alive||loading||!navigator.onLine||document.visibilityState!=='visible')return;
+  if(!box?.isConnected)return;
+  loading=true;
+  try{
+   const cred=await completeCredentials(room);
+   const full=force||++polls%6===0;
+   const url=`/api/rooms/${encodeURIComponent(room.id)}/messages${cursor&&!full?'?after='+encodeURIComponent(cursor):''}`;
+   const res=await fetch(url,{headers:{'X-Room-Read-Token':cred.readToken,...(cred.token?{'X-Room-Token':cred.token}:{})},cache:'no-store'});
+   if(!res.ok)throw Error(res.status===404?'Sala removida ou inacessível.':'Não foi possível consultar o chat.');
+   const data=await res.json();if(!Array.isArray(data.messages))throw Error('Resposta de chat inválida.');
+   const incoming=[];
+   for(const item of data.messages){try{incoming.push(await openChatMessage(room,item))}catch{ /* bad ciphertext is never rendered */ }}
+   if(!alive)return;
+   if(full){messages=[];cursor=''}
+   const ids=new Set(messages.map(x=>x.id));for(const m of incoming)if(!ids.has(m.id)){messages.push(m);ids.add(m.id)}
+   messages=messages.slice(-100);cursor=data.cursor||cursor;
+   paint();setStatus('Conversa sincronizada.');
+  }catch(e){setStatus('Sem conexão com o chat. Tente novamente ao voltar.');onError(e)}finally{loading=false}
+ };
+ const submit=async e=>{
+  e.preventDefault();if(!roomCanEdit(room)||!form||form.dataset.sending==='yes')return;
+  const field=form.querySelector('#chat-text');const message=field.value;
+  if(!validChatText(message)){setStatus('Escreva uma mensagem de até 500 caracteres.');return}
+  form.dataset.sending='yes';const sendButton=form.querySelector('button[type=submit]');sendButton.disabled=true;
+  try{
+   const author=alias?.value?.trim()||'Cuidador';
+   const encrypted=await createChatMessage(room,{author,text:message});
+   const cred=await completeCredentials(room);
+   const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Token':cred.token},body:JSON.stringify(encrypted),cache:'no-store'});
+   if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
+   field.value='';try{localStorage.setItem('cuidadora-chat-alias',author.slice(0,28))}catch{}
+   await refresh();setStatus('Mensagem enviada.');
+  }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;sendButton.disabled=false}
+ };
+ const clear=async()=>{
+  if(!roomCanEdit(room)||!confirm('Apagar todas as mensagens da sala em todos os aparelhos? Esta ação não pode ser desfeita.'))return;
+  try{const cred=await completeCredentials(room);const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'DELETE',headers:{'X-Room-Token':cred.token},cache:'no-store'});if(!res.ok)throw Error('Falha ao apagar conversa');messages=[];cursor='';paint();setStatus('Conversa apagada para todos.')}catch(e){setStatus(e.message)}
+ };
+ const clearButton=element.querySelector('#chat-clear');
+ form?.addEventListener('submit',submit);
+ clearButton?.addEventListener('click',clear);
+ const visibility=()=>{if(document.visibilityState==='visible')void refresh()};
+ document.addEventListener('visibilitychange',visibility);
+ timer=setInterval(()=>void refresh(),15000);
+ void refresh();
+ return ()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
+}

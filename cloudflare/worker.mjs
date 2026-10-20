@@ -1,10 +1,11 @@
 /** Cloudflare Workers Free + D1: private ciphertext only. No plaintext health data on server. */
 export const SOURCE_REVISION='__PINNED_SHA__';
 const SOURCE=`https://raw.githubusercontent.com/pabloguilherme1121/Cuidador-a-/${SOURCE_REVISION}/`;
-const ASSETS=new Set(['index.html','app.js','core.mjs','room.mjs','timeline.mjs','styles.css','sw.js','manifest.webmanifest','robots.txt','assets/icon.svg','assets/icon-maskable.svg','assets/icon-192.png','assets/icon-512.png','assets/apple-touch-icon.png','assets/icon-maskable-512.png']);
+const ASSETS=new Set(['index.html','app.js','core.mjs','room.mjs','timeline.mjs','chat.mjs','styles.css','sw.js','manifest.webmanifest','robots.txt','assets/icon.svg','assets/icon-maskable.svg','assets/icon-192.png','assets/icon-512.png','assets/apple-touch-icon.png','assets/icon-maskable-512.png']);
 const TYPES={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',mjs:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',webmanifest:'application/manifest+json; charset=utf-8',txt:'text/plain; charset=utf-8',png:'image/png',svg:'image/svg+xml; charset=utf-8'};
 const CSP="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'";
 const JSON_HEADERS={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
+const CHAT_ID=/^[\w-]{16}$/;const CHAT_IV=/^[\w-]{16}$/;const CHAT_CIPHER=/^[\w-]{22,2500}$/;
 const OK_ID=/^[\w-]{22}$/; const OK_HASH=/^[\w-]{43}$/;const OK_IV=/^[\w-]{16}$/;const OK_CIPHER=/^[\w-]{22,140000}$/;
 export const isValidEnvelope=e=>e&&typeof e==='object'&&OK_IV.test(e.iv||'')&&OK_CIPHER.test(e.ciphertext||'');
 const response=(o,status=200)=>new Response(JSON.stringify(o),{status,headers:JSON_HEADERS});
@@ -21,9 +22,10 @@ export async function roomApi(req,env){
   if(!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!OK_HASH.test(data.readHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
   try{await env.CARE_ROOMS.prepare('INSERT INTO rooms (id,auth_hash,read_hash,iv,ciphertext,version,updated_at) VALUES (?,?,?,?,?,1,?)').bind(data.id,data.authHash,data.readHash,data.iv,data.ciphertext,Date.now()).run();return response({version:1},201)}catch{return response({error:'Não foi possível criar a sala'},409)}
  }
- const match=/^\/api\/rooms\/([\w-]{22})$/.exec(path);if(!match)return response({error:'Não encontrado'},404);
- const id=match[1],row=await env.CARE_ROOMS.prepare('SELECT id,auth_hash,read_hash,iv,ciphertext,version,updated_at FROM rooms WHERE id=?').bind(id).first();
+ const match=/^\/api\/rooms\/([\w-]{22})(\/messages)?$/.exec(path);if(!match)return response({error:'Não encontrado'},404);
+ const id=match[1],isChat=Boolean(match[2]),row=await env.CARE_ROOMS.prepare('SELECT id,auth_hash,read_hash,iv,ciphertext,version,updated_at FROM rooms WHERE id=?').bind(id).first();
  if(!row)return response({error:'Sala não encontrada'},404);
+ if(isChat)return chatApi(req,env,id,row);
  if(req.method==='GET'){
   if(row.read_hash&&!await authorized(req,row.read_hash,'X-Room-Read-Token')&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
   // Authenticate before inspecting If-None-Match; never reveal whether a private room exists.
@@ -33,7 +35,7 @@ export async function roomApi(req,env){
   return new Response(JSON.stringify({version:row.version,iv:row.iv,ciphertext:row.ciphertext,updatedAt:row.updated_at,legacy:!row.read_hash}),{status:200,headers});
  }
  if(!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
- if(req.method==='DELETE'){await env.CARE_ROOMS.prepare('DELETE FROM rooms WHERE id=? AND auth_hash=?').bind(id,row.auth_hash).run();return response({deleted:true})}
+ if(req.method==='DELETE'){await env.CARE_ROOMS.prepare('DELETE FROM room_messages WHERE room_id=?').bind(id).run();await env.CARE_ROOMS.prepare('DELETE FROM rooms WHERE id=? AND auth_hash=?').bind(id,row.auth_hash).run();return response({deleted:true})}
  if(req.method==='PUT'){
   let data;try{data=await parse(req)}catch{return response({error:'Arquivo inválido'},400)}
   if(!isValidEnvelope(data)||!Number.isSafeInteger(data.version)||data.version<1)return response({error:'Dados inválidos'},400);
@@ -42,6 +44,42 @@ export async function roomApi(req,env){
   return response({version:data.version+1});
  }
  return response({error:'Método não permitido'},405);
+}
+
+/** Chat is ciphertext-only, and never grants editor permissions to viewing invitations. */
+async function chatApi(req,env,id,row){
+ const db=env.CARE_ROOMS;
+ if(req.method==='GET'){
+  if(row.read_hash&&!await authorized(req,row.read_hash,'X-Room-Read-Token')&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
+  // Legacy rooms used the editing token to read and did not support read-only links.
+  if(!row.read_hash&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
+  const cursor=new URL(req.url).searchParams.get('after')||'';
+  if(cursor&&!/^\d{12,14}\.[\w-]{16}$/.test(cursor))return response({error:'Cursor inválido'},400);
+  let list;
+  if(cursor){const [timestamp,msgId]=cursor.split('.');
+   const r=await db.prepare('SELECT id,iv,ciphertext,created_at FROM room_messages WHERE room_id=? AND (created_at>? OR (created_at=? AND id>?)) ORDER BY created_at ASC,id ASC LIMIT 60').bind(id,Number(timestamp),Number(timestamp),msgId).all();list=r.results||[];
+  }else{
+   const r=await db.prepare('SELECT id,iv,ciphertext,created_at FROM room_messages WHERE room_id=? ORDER BY created_at DESC,id DESC LIMIT 60').bind(id).all();list=(r.results||[]).reverse();
+  }
+  const messages=list.map(m=>({id:m.id,iv:m.iv,ciphertext:m.ciphertext,createdAt:m.created_at}));
+  const last=list.at(-1),nextCursor=last?`${last.created_at}.${last.id}`:cursor;
+  return response({messages,cursor:nextCursor});
+ }
+ if(!await authorized(req,row.auth_hash))return response({error:'Somente quem pode editar consegue enviar ou apagar mensagens'},403);
+ if(req.method==='DELETE'){
+  await db.prepare('DELETE FROM room_messages WHERE room_id=?').bind(id).run();return response({deleted:true});
+ }
+ if(req.method!=='POST')return response({error:'Método não permitido'},405);
+ let msg;try{msg=await parse(req)}catch{return response({error:'Mensagem inválida'},400)}
+ if(!msg||!CHAT_ID.test(msg.id||'')||!CHAT_IV.test(msg.iv||'')||!CHAT_CIPHER.test(msg.ciphertext||''))return response({error:'Mensagem cifrada inválida'},400);
+ const now=Date.now();
+ const rate=await db.prepare('SELECT COUNT(*) AS count FROM room_messages WHERE room_id=? AND created_at>?').bind(id,now-60000).first();
+ if(Number(rate?.count)>=12)return response({error:'Aguarde antes de enviar novas mensagens.'},429);
+ const inserted=await db.prepare('INSERT OR IGNORE INTO room_messages (room_id,id,iv,ciphertext,created_at) VALUES (?,?,?,?,?)').bind(id,msg.id,msg.iv,msg.ciphertext,now).run();
+ if(inserted.meta?.changes===0)return response({saved:true,duplicate:true});
+ // Keep at most 200 encrypted messages per room, without collecting usage profiles.
+ await db.prepare('DELETE FROM room_messages WHERE room_id=? AND id NOT IN (SELECT id FROM room_messages WHERE room_id=? ORDER BY created_at DESC,id DESC LIMIT 200)').bind(id,id).run();
+ return response({saved:true},201);
 }
 async function staticAsset(req){
  if(!['GET','HEAD'].includes(req.method))return new Response('Método não permitido',{status:405});
@@ -54,7 +92,7 @@ async function staticAsset(req){
  headers.set('X-Frame-Options','DENY');headers.set('Referrer-Policy','no-referrer');
  headers.set('Permissions-Policy','camera=(),microphone=(),geolocation=()');
  headers.set('Content-Security-Policy',CSP);headers.set('Strict-Transport-Security','max-age=31536000');
- headers.set('Cache-Control',['index.html','sw.js','app.js','room.mjs','core.mjs','timeline.mjs','styles.css'].includes(path)?'no-cache, must-revalidate':'public, max-age=600');
+ headers.set('Cache-Control',['index.html','sw.js','app.js','room.mjs','chat.mjs','core.mjs','timeline.mjs','styles.css'].includes(path)?'no-cache, must-revalidate':'public, max-age=600');
  if(path==='sw.js')headers.set('Service-Worker-Allowed','/');
  return new Response(req.method==='HEAD'?null:upstream.body,{status:200,headers});
 }

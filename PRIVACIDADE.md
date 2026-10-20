@@ -37,4 +37,6 @@ Agora há **dois convites**: visualização (permite consultar rotinas sem modif
 
 A sincronização depende da conexão, não é instantânea e alterações simultâneas podem exigir resolução manual. **Alarmes da web não são garantidos com o aplicativo fechado**. O app não substitui sistemas clínicos, a receita médica ou o calendário nativo do celular.
 
-**Compatibilidade com v3.0:** links anteriores tinham segredos equivalentes para consulta e edição. O aplicativo bloqueia a criação de convites rotulados como apenas leitura para salas antigas. Renovar todos os convites é necessário para obter a separação real entre permissões.
+## Chat de Sala (3.4)
+
+As mensagens enviadas ao chat das salas, incluindo o apelido escolhido, são cifradas no próprio aparelho. O servidor armazena exclusivamente identificador técnico, IV, conteúdo criptografado e horário de envio; não recebe as chaves contidas no fragmento do convite. Pessoas que recebem o link de leitura podem ver a conversa e pessoas com o link de edição podem postar e apagar todo o histórico. Não é possível controlar individualmente cada pessoa que tenha copiado um convite. A conversa é limitada às últimas 200 mensagens no servidor. Não use o chat para comunicação urgente sobre medicamentos. Apagar a sala remove também suas mensagens do servidor, mas não backups ou cópias já exportadas.

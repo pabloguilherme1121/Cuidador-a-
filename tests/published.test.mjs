@@ -5,7 +5,7 @@ import {join} from 'node:path';
 const root='dist';
 test('public output only includes whitelisted static files',()=>{
  const files=readdirSync(root).sort();
- assert.deepEqual(files,['\u005fheaders','app.js','assets','core.mjs','room.mjs','timeline.mjs','index.html','manifest.webmanifest','robots.txt','styles.css','sw.js'].sort());
+ assert.deepEqual(files,['\u005fheaders','app.js','assets','core.mjs','room.mjs','chat.mjs','timeline.mjs','index.html','manifest.webmanifest','robots.txt','styles.css','sw.js'].sort());
  assert.ok(statSync(join(root,'index.html')).isFile());
  assert.ok(readFileSync(join(root,'_headers'),'utf8').includes('Content-Security-Policy'));
  assert.ok(!files.includes('supabase')&&!files.includes('README.md')&&!files.includes('tests'));
@@ -20,7 +20,7 @@ test('PWA uses scope-relative URLs compatible with subdirectory and project host
 
 test('service worker refreshes executable assets online and falls back to cached files offline',()=>{
  const sw=readFileSync(join(root,'sw.js'),'utf8');
- assert.ok(sw.includes("cuidadora-cache-v8"),'SW cache version must update for the new release');
+ assert.ok(sw.includes("cuidadora-cache-v9"),'SW cache version must update for the new release');
  assert.ok(sw.includes("const NETWORK_FIRST"),'Scripts and CSS should prefer network to avoid stale health reminders');
  assert.ok(sw.includes("if(path.startsWith('/api/'))return"),'Private room endpoints must not be cached by service worker');
  assert.ok(sw.includes('caches.match(req)'),'Offline cache remains available when offline');
