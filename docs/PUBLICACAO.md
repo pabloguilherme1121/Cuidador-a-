@@ -22,3 +22,17 @@ As rotinas locais continuam disponíveis quando o backend falha; não prometer s
 ## Evolução opcional
 
 Se futuramente os arquivos estáticos forem migrados para Cloudflare Pages ou Workers Static Assets, planejar a separação da API e a migração de origem/localStorage antes de alterar domínios. Consulte [DEPLOY_GRATUITO.md](DEPLOY_GRATUITO.md) apenas para referências de **hospedagem estática**, não como receita de deploy da arquitetura Worker+D1 já existente.
+
+## Atestação separada do backend realmente publicado
+
+Após a implantação manual do Worker na conta Cloudflare correta, copie o SHA completo da versão efetivamente implantada e acione **Actions → Conferir revisão publicada do Worker (somente leitura) → Run workflow**, informando esse SHA no campo `expected_sha`. O workflow é **manual**, não executa em pushes nem tenta implantar código.
+
+A mesma verificação pode ser feita com Node 22 a partir do repositório:
+
+```bash
+node scripts/verify-worker-release.mjs <SHA_COMPLETO_APROVADO>
+```
+
+O verificador faz **uma consulta GET** ao endpoint público `/api/health`, sem tokens, sem consulta ao D1 e sem enviar dados de pacientes. Ele exige HTTP 200, resposta JSON com `status=ok`, `service=cuidadora` e **SHA exato de 40 caracteres**. Qualquer diferença, erro HTTP, payload inesperado ou indisponibilidade causa saída com código diferente de zero.
+
+**Importante:** esse teste comprova apenas a revisão declarada pelo Worker no endpoint de saúde. Não substitui a validação da lógica implantada, dos bindings D1, dos controles 403/200/304, da criptografia, do chat, do uso offline nem do Android físico. Caso a versão não coincida, **não** marque o deploy como concluído; revise a conta Worker correta, o SHA fixado e a implantação antes de fazer qualquer teste com salas sintéticas.
