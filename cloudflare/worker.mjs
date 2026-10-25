@@ -65,7 +65,9 @@ export async function roomApi(req,env){
  if(!row)return response({error:'Sala não encontrada'},404);
  if(isChat)return chatApi(req,env,id,row);
  if(req.method==='GET'){
-  if(row.read_hash&&!await authorized(req,row.read_hash,'X-Room-Read-Token')&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
+  if(row.read_hash){
+   if(!await authorized(req,row.read_hash,'X-Room-Read-Token')&&!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
+  }else if(!await authorized(req,row.auth_hash))return response({error:'Não autorizado'},403);
   // Authenticate before inspecting If-None-Match; never reveal whether a private room exists.
   const etag=`"v${row.version}"`;
   if(req.headers.get('If-None-Match')===etag)return new Response(null,{status:304,headers:{...JSON_HEADERS,ETag:etag}});
