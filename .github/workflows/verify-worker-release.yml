@@ -1,0 +1,25 @@
+name: Conferir revisão publicada do Worker (somente leitura)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'SHA completo (40 caracteres) do Worker aprovado e implantado'
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  attest:
+    name: Confirmar SHA da API pública
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Conferir revisão via /api/health sem criar dados
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/verify-worker-release.mjs "$EXPECTED_SHA"
