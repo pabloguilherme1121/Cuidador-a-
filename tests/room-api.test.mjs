@@ -56,3 +56,24 @@ test('conditional room reads save bytes without leaking access or hiding a new v
  assert.equal(r.status,200);assert.equal(r.headers.get('ETag'),'"v2"');
  assert.equal((await r.json()).version,2);
 });
+
+
+test('legacy room must require editor authentication before GET and 304', async()=>{
+ const owner=await createCredentials();
+ const enc=await encryptRoom(owner,{version:1,items:[],settings:{theme:'dark'}});
+ const row={id:owner.id,auth_hash:owner.authHash,read_hash:null,iv:enc.iv,ciphertext:enc.ciphertext,version:1,updated_at:1761300000000};
+ const env={CARE_ROOMS:{prepare(sql){
+  assert.match(sql,/SELECT id,auth_hash,read_hash/);
+  return {bind(id){assert.equal(id,owner.id);return this},async first(){return row}};
+ }}};
+ const uri='/api/rooms/'+owner.id;
+ assert.equal((await roomApi(await request(uri),env)).status,403);
+ assert.equal((await roomApi(await request(uri,'GET',null,null,owner.readToken),env)).status,403);
+ const unauthenticatedConditional=new Request(base+uri,{headers:{Origin:base,'If-None-Match':'"v1"'}});
+ assert.equal((await roomApi(unauthenticatedConditional,env)).status,403);
+ const readable=await roomApi(await request(uri,'GET',null,owner.token),env);
+ assert.equal(readable.status,200);
+ assert.equal((await readable.json()).legacy,true);
+ const authenticatedConditional=new Request(base+uri,{headers:{Origin:base,'X-Room-Token':owner.token,'If-None-Match':'"v1"'}});
+ assert.equal((await roomApi(authenticatedConditional,env)).status,304);
+});
