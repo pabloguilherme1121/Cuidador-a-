@@ -19,7 +19,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
   browser:
-    runs-on: ubuntu-latest
+    # Playwright Python 1.57 lacks browser deps for ubuntu26.04 on ubuntu-latest.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
