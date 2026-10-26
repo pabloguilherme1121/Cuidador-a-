@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCredentials} from '../room.mjs';
-import {createChatMessage,openChatMessage,validChatText} from '../chat.mjs';
+import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias} from '../chat.mjs';
 import {roomApi} from '../cloudflare/worker.mjs';
 
 const base='https://cuidadora.example';
@@ -78,4 +78,17 @@ test('chat author names preserve whole emoji at the 28-character boundary',async
  const overflow=await createChatMessage(room,{text:'Outro teste',author:'💊'.repeat(29)});
  const checked=await openChatMessage(room,overflow);
  assert.equal(checked.author,'💊'.repeat(28));
+});
+
+test('chat alias form respects 28 Unicode code points, including emoji input',()=>{
+ const html=chatMarkup(true);
+ const aliasField=html.match(/<input[^>]*id="chat-alias"[^>]*>/)?.[0];
+ assert.ok(aliasField,'editor alias input should exist');
+ assert.doesNotMatch(aliasField,/maxlength="28"/,'HTML maxlength counts UTF-16 code units, not emoji characters');
+ assert.match(aliasField,/maxlength="56"/);
+ const name='A'.repeat(27)+'💊';
+ assert.equal(limitChatAlias(name),name);
+ assert.equal(limitChatAlias('💊'.repeat(29)),'💊'.repeat(28));
+ assert.equal(limitChatAlias('Ana Maria'),'Ana Maria');
+ assert.equal(limitChatAlias('X'.repeat(57)),'X'.repeat(28));
 });
