@@ -82,3 +82,41 @@ test('Worker remains allowlisted: arbitrary files cannot be downloaded',async()=
   assert.equal(response.status,404);
  }finally{globalThis.fetch=originalFetch}
 });
+
+
+test('unencrypted GET and HEAD are redirected without returning app content or touching D1',async()=>{
+ const originalFetch=globalThis.fetch;
+ let fetched=0;
+ globalThis.fetch=async()=>{fetched++;return new Response('should never reach upstream',{status:200})};
+ try{
+  for(const method of ['GET','HEAD']){
+   for(const route of ['/', '/assets/pg-bot.webp', '/api/health']){
+    const original='http://cuidadora-pwa.pabloguui21.workers.dev'+route+'?lang=pt';
+    const res=await worker.fetch(new Request(original,{method}),{});
+    assert.equal(res.status,308,method+' '+route+' must enforce HTTPS');
+    assert.equal(res.headers.get('location'),original.replace('http:','https:'));
+    assert.equal(res.headers.get('cache-control'),'no-store');
+    assert.equal(await res.text(),'');
+   }
+  }
+  assert.equal(fetched,0,'HTTP must not request assets from upstream');
+ }finally{globalThis.fetch=originalFetch}
+});
+
+test('unencrypted writes are rejected without parsing or persisting private data',async()=>{
+ let calls=0;
+ const env={CARE_ROOMS:{prepare(){calls++;throw Error('D1 must not be used')}},ABUSE_SALT:'test-unguessable-hmac-salt-long-enough'};
+ const body=JSON.stringify({private:'should not reach DB'});
+ for(const method of ['POST','PUT','DELETE']){
+  const res=await worker.fetch(new Request('http://cuidadora-pwa.pabloguui21.workers.dev/api/rooms',{method,headers:{'Content-Type':'application/json','CF-Connecting-IP':'203.0.113.50'},body:method==='DELETE'?undefined:body}),env);
+  assert.equal(res.status,403,method+' must never run over HTTP');
+  assert.equal(res.headers.get('cache-control'),'no-store');
+ }
+ assert.equal(calls,0);
+});
+
+test('already encrypted health GET keeps its normal endpoint behavior',async()=>{
+ const res=await worker.fetch(new Request(origin+'/api/health'),{});
+ assert.equal(res.status,200);
+ assert.equal((await res.json()).service,'cuidadora');
+});

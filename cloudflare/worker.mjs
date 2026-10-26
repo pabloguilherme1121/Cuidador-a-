@@ -140,7 +140,13 @@ export default {async fetch(req,env){
  const start=Date.now(),url=new URL(req.url),category=requestCategory(url.pathname),requestId=crypto.randomUUID();
  let result, retryAfter;
  try{
-  if(category==='health'&&req.method==='GET')result=response(healthPayload());
+  if(url.protocol!=='https:'){
+   if(url.protocol==='http:'&&(req.method==='GET'||req.method==='HEAD')){
+    url.protocol='https:';
+    result=new Response(null,{status:308,headers:{Location:url.href,'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
+   }else result=response({error:'HTTPS obrigatório'},403);
+  }
+  else if(category==='health'&&req.method==='GET')result=response(healthPayload());
   else if(url.pathname==='/api/rooms'&&req.method==='POST'){
    const gate=await creationGuard(req,env);
    if(!gate.allowed){retryAfter=gate.retryAfter;result=response({error:gate.status===429?'Limite temporário de criação de salas. Aguarde.':'Criação de salas temporariamente indisponível.'},gate.status)}
