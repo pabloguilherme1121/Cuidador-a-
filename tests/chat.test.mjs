@@ -66,3 +66,16 @@ test('room chat requires read token to read, editor token to send, validates pay
  assert.equal((await roomApi(makeReq('/api/rooms/'+a.id,'DELETE',undefined,a.token),env)).status,200);
  assert.equal((await roomApi(makeReq(route,'GET',undefined,undefined,a.readToken),env)).status,404);
 });
+
+test('chat author names preserve whole emoji at the 28-character boundary',async()=>{
+ const room=await createCredentials();
+ const exact='A'.repeat(27)+'💊';
+ const encrypted=await createChatMessage(room,{text:'Aviso de teste',author:exact});
+ const opened=await openChatMessage(room,encrypted);
+ assert.equal(opened.author,exact);
+ assert.equal(Array.from(opened.author).length,28);
+ assert.doesNotMatch(opened.author,/\uFFFD|[\uD800-\uDBFF]$(?![\uDC00-\uDFFF])/);
+ const overflow=await createChatMessage(room,{text:'Outro teste',author:'💊'.repeat(29)});
+ const checked=await openChatMessage(room,overflow);
+ assert.equal(checked.author,'💊'.repeat(28));
+});
