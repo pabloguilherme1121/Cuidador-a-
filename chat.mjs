@@ -5,11 +5,13 @@ const to64=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace
 const from64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));
 const ID=/^[\w-]{16}$/;
 export const validChatText=v=>typeof v==='string'&&v.trim().length>=1&&v.trim().length<=500;
+/** Limit the alias using the same Unicode code-point contract as encrypted messages. */
+export const limitChatAlias=value=>Array.from(String(value??'')).slice(0,28).join('');
 export const validChatEnvelope=v=>Boolean(v&&ID.test(v.id||'')&&/^[\w-]{16}$/.test(v.iv||'')&&/^[\w-]{22,2500}$/.test(v.ciphertext||''));
 async function aesKey(room){return crypto.subtle.importKey('raw',from64(room.key),'AES-GCM',false,['encrypt','decrypt'])}
 export async function createChatMessage(room,{author,text}){
  if(!room||!validChatText(text))throw new Error('Escreva uma mensagem de até 500 caracteres.');
- const display=Array.from(String(author||'Cuidador').trim()).slice(0,28).join('')||'Cuidador';
+ const display=limitChatAlias(String(author||'Cuidador').trim())||'Cuidador';
  const id=to64(crypto.getRandomValues(new Uint8Array(12))),iv=crypto.getRandomValues(new Uint8Array(12));
  const payload=encoder.encode(JSON.stringify({v:1,author:display,text:text.trim()}));
  const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(`${room.id}:chat:${id}`)},await aesKey(room),payload);
@@ -35,7 +37,7 @@ export function chatMarkup(canSend){
    <div class="chat-heading"><div><h2 id="chat-title">Conversa da sala</h2><p class="help">Mensagens criptografadas. As pessoas com o link de edição podem responder.</p></div><span class="chat-lock" aria-label="Criptografia de ponta a ponta">Privado</span></div>
    <div class="chat-messages" id="chat-messages" role="log" aria-label="Mensagens da sala" aria-live="polite" aria-relevant="additions text"><p class="help">Carregando conversa…</p></div>
    <div class="chat-sync"><p class="help" id="chat-status" role="status">A conversa é visível a quem possui o convite da sala.</p><button type="button" id="chat-refresh" class="btn small ghost">Atualizar mensagens</button></div>
-   ${canSend?`<form id="chat-form" class="chat-form"><label for="chat-alias">Como quer aparecer</label><input id="chat-alias" name="alias" autocomplete="nickname" maxlength="28" placeholder="Ex.: Familiar"><label for="chat-text">Mensagem</label><textarea id="chat-text" name="message" maxlength="500" rows="2" required placeholder="Escreva uma mensagem para os cuidadores…"></textarea><button type="submit" class="btn primary" id="chat-send">Enviar mensagem</button></form><button class="btn ghost chat-clear" id="chat-clear" type="button">Apagar conversa para todos</button>`:`<p class="mini-flag">Este convite permite acompanhar a conversa. Para enviar mensagens, peça um link de edição ao responsável.</p>`}
+   ${canSend?`<form id="chat-form" class="chat-form"><label for="chat-alias">Como quer aparecer</label><input id="chat-alias" name="alias" autocomplete="nickname" maxlength="56" aria-describedby="chat-alias-help" placeholder="Ex.: Familiar"><small id="chat-alias-help" class="help">Até 28 caracteres, inclusive emojis.</small><label for="chat-text">Mensagem</label><textarea id="chat-text" name="message" maxlength="500" rows="2" required placeholder="Escreva uma mensagem para os cuidadores…"></textarea><button type="submit" class="btn primary" id="chat-send">Enviar mensagem</button></form><button class="btn ghost chat-clear" id="chat-clear" type="button">Apagar conversa para todos</button>`:`<p class="mini-flag">Este convite permite acompanhar a conversa. Para enviar mensagens, peça um link de edição ao responsável.</p>`}
    <p class="help">Evite compartilhar dados desnecessários. Alertas de novas mensagens não são garantidos com o aplicativo fechado.</p>
  </section>`;
 }
@@ -45,7 +47,10 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
  const alias=element.querySelector('#chat-alias');
- try{if(alias)alias.value=localStorage.getItem('cuidadora-chat-alias')||''}catch{}
+ try{if(alias)alias.value=limitChatAlias(localStorage.getItem('cuidadora-chat-alias')||'')}catch{}
+ const clampAlias=event=>{if(event?.isComposing)return;if(alias)alias.value=limitChatAlias(alias.value)};
+ alias?.addEventListener('input',clampAlias);
+ alias?.addEventListener('compositionend',clampAlias);
  const setStatus=text=>{if(alive&&status?.isConnected)status.textContent=text};
  const paint=()=>{
   if(!alive||!box?.isConnected)return;
@@ -90,12 +95,12 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   if(!validChatText(message)){setStatus('Escreva uma mensagem de até 500 caracteres.');return}
   form.dataset.sending='yes';const sendButton=form.querySelector('button[type=submit]');sendButton.disabled=true;
   try{
-   const author=alias?.value?.trim()||'Cuidador';
+   const author=limitChatAlias(alias?.value?.trim()||'Cuidador');
    const encrypted=await createChatMessage(room,{author,text:message});
    const cred=await completeCredentials(room);
    const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Token':cred.token},body:JSON.stringify(encrypted),cache:'no-store'});
    if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
-   field.value='';try{localStorage.setItem('cuidadora-chat-alias',Array.from(author).slice(0,28).join(''))}catch{}
+   field.value='';try{localStorage.setItem('cuidadora-chat-alias',limitChatAlias(author))}catch{}
    await refresh();setStatus('Mensagem enviada.');
   }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;sendButton.disabled=false}
  };
@@ -113,5 +118,5 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  refreshButton?.addEventListener('click',manualRefresh);
  document.addEventListener('visibilitychange',visibility);window.addEventListener('online',onOnline);
  void refresh();
- return ()=>{alive=false;clearTimeout(timer);window.removeEventListener('online',onOnline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
+ return ()=>{alive=false;clearTimeout(timer);alias?.removeEventListener('input',clampAlias);alias?.removeEventListener('compositionend',clampAlias);window.removeEventListener('online',onOnline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
 }
