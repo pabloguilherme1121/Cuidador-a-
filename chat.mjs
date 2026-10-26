@@ -9,7 +9,7 @@ export const validChatEnvelope=v=>Boolean(v&&ID.test(v.id||'')&&/^[\w-]{16}$/.te
 async function aesKey(room){return crypto.subtle.importKey('raw',from64(room.key),'AES-GCM',false,['encrypt','decrypt'])}
 export async function createChatMessage(room,{author,text}){
  if(!room||!validChatText(text))throw new Error('Escreva uma mensagem de até 500 caracteres.');
- const display=String(author||'Cuidador').trim().slice(0,28)||'Cuidador';
+ const display=Array.from(String(author||'Cuidador').trim()).slice(0,28).join('')||'Cuidador';
  const id=to64(crypto.getRandomValues(new Uint8Array(12))),iv=crypto.getRandomValues(new Uint8Array(12));
  const payload=encoder.encode(JSON.stringify({v:1,author:display,text:text.trim()}));
  const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(`${room.id}:chat:${id}`)},await aesKey(room),payload);
@@ -21,7 +21,7 @@ export async function openChatMessage(room,data){
  if(!validChatEnvelope(data))throw new Error('Mensagem recebida inválida.');
  const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:from64(data.iv),additionalData:encoder.encode(`${room.id}:chat:${data.id}`)},await aesKey(room),from64(data.ciphertext));
  const payload=JSON.parse(decoder.decode(bytes));
- if(payload?.v!==1||!validChatText(payload.text)||typeof payload.author!=='string'||payload.author.length>28)throw new Error('Conteúdo da mensagem inválido.');
+ if(payload?.v!==1||!validChatText(payload.text)||typeof payload.author!=='string'||Array.from(payload.author).length>28)throw new Error('Conteúdo da mensagem inválido.');
  return {id:data.id,author:payload.author,text:payload.text,createdAt:data.createdAt};
 }
 /** Adaptive checks protect free-tier quotas; manual refresh remains available. */
@@ -95,7 +95,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const cred=await completeCredentials(room);
    const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Token':cred.token},body:JSON.stringify(encrypted),cache:'no-store'});
    if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
-   field.value='';try{localStorage.setItem('cuidadora-chat-alias',author.slice(0,28))}catch{}
+   field.value='';try{localStorage.setItem('cuidadora-chat-alias',Array.from(author).slice(0,28).join(''))}catch{}
    await refresh();setStatus('Mensagem enviada.');
   }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;sendButton.disabled=false}
  };
