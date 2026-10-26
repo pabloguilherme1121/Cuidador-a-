@@ -120,3 +120,19 @@ test('already encrypted health GET keeps its normal endpoint behavior',async()=>
  assert.equal(res.status,200);
  assert.equal((await res.json()).service,'cuidadora');
 });
+
+
+test('public privacy notice GET and HEAD are served without D1 or private-room access',async()=>{
+ const originalFetch=globalThis.fetch;
+ let calls=0;
+ globalThis.fetch=async url=>{calls++;assert.match(String(url),/\/privacidade\.html$/);return new Response('<html lang="pt-BR"><title>Privacidade</title></html>',{status:200})};
+ try{
+  for(const method of ['GET','HEAD']){
+   const res=await worker.fetch(new Request(origin+'/privacidade.html',{method}),{});
+   assert.equal(res.status,200);
+   assert.match(res.headers.get('content-type'),/text\/html/);
+   if(method==='HEAD')assert.equal(await res.text(),'');
+  }
+  assert.equal(calls,2);
+ }finally{globalThis.fetch=originalFetch}
+});

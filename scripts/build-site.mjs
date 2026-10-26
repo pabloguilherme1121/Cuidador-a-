@@ -3,7 +3,7 @@ import {cpSync, mkdirSync, rmSync, statSync} from 'node:fs';
 import {join} from 'node:path';
 const root=process.cwd(),output=join(root,'dist');
 rmSync(output,{recursive:true,force:true});mkdirSync(output,{recursive:true});
-const files=['index.html','styles.css','app.js','core.mjs','room.mjs','chat.mjs','timeline.mjs','sw.js','manifest.webmanifest'];
+const files=['index.html','privacidade.html','styles.css','app.js','core.mjs','room.mjs','chat.mjs','timeline.mjs','sw.js','manifest.webmanifest'];
 for (const file of files) {
  if (!statSync(join(root,file)).isFile()) throw new Error(`${file} não encontrado`);
  cpSync(join(root,file),join(output,file));
