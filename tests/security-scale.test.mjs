@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {creationGuard, requestCategory, responseWithOperations, healthPayload} from '../cloudflare/worker.mjs';
+import worker,{creationGuard, requestCategory, responseWithOperations, healthPayload} from '../cloudflare/worker.mjs';
 
 const origin='https://cuidadora-pwa.pabloguui21.workers.dev';
 function fakeDB(){
@@ -52,4 +52,33 @@ test('health endpoint never exposes tenant information',()=>{
   const p=healthPayload();
   assert.equal(p.status,'ok');
   assert.ok(Object.keys(p).every(k=>['status','service','revision'].includes(k)));
+});
+
+
+test('Worker serves PG Bot image required by the offline cache with the correct MIME type',async()=>{
+ const originalFetch=globalThis.fetch;
+ let upstreamCalls=0;
+ const imageBytes=new Uint8Array([82,73,70,70,1,2,3,4]);
+ globalThis.fetch=async()=>{upstreamCalls++;return new Response(imageBytes,{status:200})};
+ try{
+  const resource=origin+'/assets/pg-bot.webp';
+  const get=await worker.fetch(new Request(resource),{});
+  assert.equal(get.status,200,'PG Bot asset must be permitted on the Worker origin');
+  assert.equal(get.headers.get('content-type'),'image/webp');
+  assert.deepEqual(new Uint8Array(await get.arrayBuffer()),imageBytes);
+  const head=await worker.fetch(new Request(resource,{method:'HEAD'}),{});
+  assert.equal(head.status,200);
+  assert.equal(head.headers.get('content-type'),'image/webp');
+  assert.equal(await head.text(),'');
+  assert.equal(upstreamCalls,2);
+ }finally{globalThis.fetch=originalFetch}
+});
+
+test('Worker remains allowlisted: arbitrary files cannot be downloaded',async()=>{
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=async()=>{throw new Error('fetch should not be reached')};
+ try{
+  const response=await worker.fetch(new Request(origin+'/assets/private-data.json'),{});
+  assert.equal(response.status,404);
+ }finally{globalThis.fetch=originalFetch}
 });
