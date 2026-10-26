@@ -5,7 +5,7 @@ import {join} from 'node:path';
 const root='dist';
 test('public output only includes whitelisted static files',()=>{
  const files=readdirSync(root).sort();
- assert.deepEqual(files,['\u005fheaders','app.js','assets','core.mjs','room.mjs','chat.mjs','timeline.mjs','index.html','manifest.webmanifest','robots.txt','styles.css','sw.js'].sort());
+ assert.deepEqual(files,['\u005fheaders','app.js','assets','core.mjs','room.mjs','chat.mjs','timeline.mjs','index.html','manifest.webmanifest','privacidade.html','robots.txt','styles.css','sw.js'].sort());
  assert.ok(statSync(join(root,'index.html')).isFile());
  assert.ok(readFileSync(join(root,'_headers'),'utf8').includes('Content-Security-Policy'));
  assert.ok(!files.includes('supabase')&&!files.includes('README.md')&&!files.includes('tests'));
@@ -43,4 +43,19 @@ test('light and dark eyebrow labels meet WCAG AA contrast without changing hero 
  }
  assert.ok(contrast(light,'#f7faf7')>=4.5,'light eyebrow requires contrast >= 4.5:1');
  assert.ok(contrast(dark,'#14231e')>=4.5,'dark eyebrow requires contrast >= 4.5:1');
+});
+
+
+test('privacy information is publicly linked before onboarding and packaged without account login',()=>{
+ const html=readFileSync(join(root,'index.html'),'utf8');
+ const notice=readFileSync(join(root,'privacidade.html'),'utf8');
+ const sw=readFileSync(join(root,'sw.js'),'utf8');
+ assert.match(html, /href="\.\/privacidade\.html"/);
+ assert.match(notice, /<html lang="pt-BR">/);
+ assert.match(notice, /<h1[^>]*>Informações de privacidade<\/h1>/);
+ for(const phrase of ['Cloudflare D1','cifrados','Links privados','excluir','medicamentos']){
+  assert.ok(notice.includes(phrase), 'public notice missing '+phrase);
+ }
+ assert.match(notice, /href="\.\/"/);
+ assert.ok(sw.includes("'./privacidade.html'"), 'privacy notice must work offline');
 });
