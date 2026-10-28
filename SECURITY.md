@@ -1,21 +1,23 @@
-# Segurança
+# Segurança — Cuidador(a) 3.6
 
-- Aplicativo principal **local-first**: nenhum dado é enviado para a API na versão atual.
-- Informações de saúde podem ficar visíveis a qualquer pessoa com acesso ao mesmo perfil do navegador. Não use o mesmo perfil para pessoas diferentes.
-- Não cole chaves secretas de serviço em `index.html`, em `.env` público ou em `app.js`.
-- Backup JSON e exportação de calendário `.ics` não são criptografados. Guarde-os em local protegido.
-- A infraestrutura SQL para contas múltiplas está preparada, mas **não integrada nem habilitada em produção**. Antes de ativar sincronização, provisionar Supabase Auth, ativar MFA quando apropriado, testar RLS com dois usuários distintos, validar recuperação/exclusão de dados e segurança do transporte HTTPS.
-- CSP restringe scripts a mesma origem. Os dados do usuário passam por escaping antes de exibição. Notificações solicitam permissão explícita.
-- Se identificar uma vulnerabilidade, comunique ao proprietário do projeto em privado, não publicando dados reais nos issues.
+O aplicativo é **local-first**, mas não é inteiramente offline. Rotinas, histórico e preferências podem ficar no navegador; ao usar uma **Sala de Pacientes** ou o chat, o aplicativo envia conteúdo cifrado com AES-GCM para a API Cloudflare Workers e para o banco Cloudflare D1. O serviço também processa metadados técnicos necessários à operação. Criptografia do conteúdo não significa anonimato completo. Veja [Privacidade](PRIVACIDADE.md).
 
-## Isolamento por origem (hospedagem)
-Para dados de medicamentos armazenados em `localStorage`, prefira hospedar num domínio **exclusivo para o Cuidador(a)**, como `<projeto>.pages.dev` no Cloudflare Pages. Evite servir o app como `/Cuidadora/` no mesmo `usuario.github.io` de outras aplicações: caminhos diferentes **não** isolam armazenamento local. Não comite dados de usuários, tokens ou backups.
+## Dados e permissões
 
-O build `dist/` tem whitelist fechada e headers de proteção via `_headers` para Cloudflare. Não equivale a uma auditoria de segurança completa nem fornece proteção física do dispositivo.
+- Informações de saúde guardadas em `localStorage` **não são criptografadas em repouso**. Quem acessar o mesmo perfil do navegador poderá vê-las. Não compartilhe perfis entre pessoas.
+- Backups JSON e exportações `.ics` não têm criptografia própria. Armazene-os em local protegido.
+- Links de Sala são **credenciais de acesso**. Quem tiver um link de leitura pode visualizar o conteúdo; quem tiver um link de edição pode modificá-lo ou excluí-lo. Não há identidade individual verificada, auditoria por pessoa ou revogação seletiva. Para revogar links, é necessário criar outra sala e excluir a anterior; isso não apaga cópias já exportadas.
+- Nunca coloque tokens, chaves de serviço ou dados reais de pacientes no repositório, em arquivos públicos, nos testes ou em relatos de issues. Não inclua conteúdo de pacientes em logs personalizados.
+- Lembretes com o aplicativo fechado **não são garantidos**. Para medicamentos críticos, use também alarmes nativos do telefone. O aplicativo não é um prontuário eletrônico nem um sistema clínico validado.
 
-### Regras adicionais da v2.2
+## Infraestrutura e isolamento
 
-- Bloquear vazamento involuntário de medicamentos no texto de notificações por padrão; preferência de exibição explícita disponível.
-- Checar antecedência de lembretes com instantes locais reais e testar a travessia da meia-noite.
-- Não confundir teste de DOM injetado com garantia de execução offline em HTTPS; validar Service Worker em CI e aparelho físico.
-- Destino planejado para o novo repositório: `pabloguilherme1121/Cuidador`. Não tente enviar código antes da criação e confirmação das permissões. O antigo `Pabloguilherme01/Cuidador` pertence a outra conta e não deve ser alterado.
+A implantação atual usa **Cloudflare Workers + D1**, não Supabase Auth. Salas e chat dependem de conexão. Antes de ampliar a divulgação, revise autorização por endpoint, links vazados, logs da plataforma, retenção, LGPD, limites do plano gratuito e ensaios de carga controlados. Veja [Operação e escala](docs/OPERACAO_ESCALA_FREE.md) e a [issue de aceite P0](https://github.com/pabloguilherme1121/Cuidador-a-/issues/1).
+
+Hospede o aplicativo em uma **origem exclusiva**, como o domínio Workers atual. Caminhos diferentes sob um mesmo domínio não isolam `localStorage`. Uma política CSP e a lista de arquivos permitidos no build reduzem a exposição, mas não substituem auditoria de segurança, proteção física do dispositivo nem testes em Android real.
+
+## Verificação e divulgação responsável
+
+Execute `npm ci --ignore-scripts` e `npm run build` antes de propor alterações. O CI também executa testes de navegador. A publicação do Worker é manual e precisa de validação HTTPS após o deploy; CI verde em uma branch não prova que essa revisão está publicada.
+
+Para relatar uma vulnerabilidade, contate o proprietário do projeto em privado. Não publique tokens, links de Sala, dados de pacientes ou provas de exploração em issues públicas.
