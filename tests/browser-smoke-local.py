@@ -313,6 +313,8 @@ with sync_playwright() as p:
    conflicted.add_script_tag(content=core)
    conflicted.add_script_tag(content=room)
    conflicted.add_script_tag(content=timeline)
+   # Room tab uses chat helpers; stub only this fixture to avoid real network/keys.
+   conflicted.add_script_tag(content="const chatMarkup=()=>'<section class=\"chat-card\"></section>';const chatDraftForRoom=()=>null;const mountRoomChat=()=>()=>{};")
    conflicted.add_script_tag(content=app)
    assert conflicted.locator('[data-action="add"]').first.is_disabled(), 'Conflito ainda permite novos horários'
    assert conflicted.locator('[data-action="room-open"]').is_enabled(), 'Resolver conflito deve seguir acessível'
