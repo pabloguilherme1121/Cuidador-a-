@@ -488,6 +488,21 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   window.addEventListener('appinstalled',()=>{deferredInstall=null;toast('Cuidador(a) instalado.')});
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Service Worker:',err)));
   window.addEventListener('storage',e=>{
+    // Access credentials are shared between tabs. A removed/rotated room must not
+    // remain active in memory on another tab; ordinary version updates are safe.
+    if(e.key===ROOM_STORAGE||e.key===null){
+      let stored=null;
+      try{stored=JSON.parse(e.key===ROOM_STORAGE?e.newValue:localStorage.getItem(ROOM_STORAGE))}catch{}
+      const sameAccess=room&&stored&&stored.id===room.id&&stored.key===room.key
+        &&(stored.editorSecret||'')===(room.editorSecret||'')
+        &&Boolean(stored.unsafeReadOnly)===Boolean(room.unsafeReadOnly);
+      if(room&&!sameAccess){
+        clearTimeout(roomDebounce);roomDebounce=null;
+        room=null;roomVersion=0;roomDirty=false;roomConflict=false;roomSyncedAt=0;roomSnapshot='';
+        roomError='A Sala foi desconectada ou os convites mudaram em outra aba. Seus horários locais foram preservados.';
+        tab='room';render();
+      }
+    }
     if(e.key===KEY){
       if(e.newValue===null){state=initial();render();return}
       try{state=validate(JSON.parse(e.newValue));render()}catch{}

@@ -313,6 +313,8 @@ with sync_playwright() as p:
    conflicted.add_script_tag(content=core)
    conflicted.add_script_tag(content=room)
    conflicted.add_script_tag(content=timeline)
+   # Room tab uses chat helpers; stub only this fixture to avoid real network/keys.
+   conflicted.add_script_tag(content="const chatMarkup=()=>'<section class=\"chat-card\"></section>';const chatDraftForRoom=()=>null;const mountRoomChat=()=>()=>{};")
    conflicted.add_script_tag(content=app)
    assert conflicted.locator('[data-action="add"]').first.is_disabled(), 'Conflito ainda permite novos horários'
    assert conflicted.locator('[data-action="room-open"]').is_enabled(), 'Resolver conflito deve seguir acessível'
@@ -332,7 +334,28 @@ with sync_playwright() as p:
    assert conflicted.locator('#reminder-switch').is_disabled(), 'Lembretes compartilhados não devem mudar durante conflito'
    assert conflicted.locator('[data-action="wipe"]').is_enabled(), 'Apagar dados só do aparelho deve continuar disponível'
    assert conflicted.evaluate('document.documentElement.scrollWidth<=window.innerWidth')
-   assert not conflict_errors, f'Conflito gerou erro JS: {conflict_errors}'
+   # Revoking the room on another tab must not leave stale editing credentials here.
+   conflicted.locator('.tabbtn[data-tab="room"]').click()
+   assert conflicted.locator('[data-action="room-create"]').count()==0, f'Sala não estava conectada antes do evento: {conflicted.locator("#main-content").inner_text()[:450]}'
+   # A version change in the same room must not accidentally log out the other tab.
+   conflicted.evaluate("""() => {
+     const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
+     const next={...JSON.parse(oldValue),version:2};
+     localStorage.setItem(key,JSON.stringify(next));
+     window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue:JSON.stringify(next)}));
+   }""")
+   assert conflicted.locator('[data-action="room-create"]').count()==0, 'Atualizar versão da Sala não deve desconectar outra aba'
+   previous_local=conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")
+   conflicted.evaluate("""() => {
+     const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
+     localStorage.removeItem(key);
+     window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue:null}));
+   }""")
+   assert conflicted.get_by_text('Crie sua sala particular').is_visible(), 'Outra aba removeu a sala mas esta manteve as credenciais'
+   assert conflicted.locator('[data-action="room-push"]').count()==0, 'Botão de enviar dados da sala antiga continua visível'
+   assert conflicted.locator('[data-action="room-create"]').is_enabled(), 'Criar uma nova sala deve seguir disponível'
+   assert conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")==previous_local, 'Desconexão de outra aba não deve apagar rotinas locais'
+   assert not conflict_errors, f'Alteração externa da sala gerou erro JS: {conflict_errors}'
    conflicted.close()
    # Simulate a slow first chat read colliding with a send, using fictitious data.
    chat_page=b.new_page(viewport={'width':390,'height':820})
