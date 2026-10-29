@@ -47,6 +47,26 @@ with sync_playwright() as p:
   page.locator('[data-action="routine-filter"][data-filter="med"]').focus()
   page.keyboard.press('Enter')
   assert page.locator('[data-action="routine-filter"][data-filter="med"]').evaluate('(el)=>document.activeElement===el'), f'Filter focus lost at {w}px'
+  # Creating from a medication filter must open a medication form and display the new item.
+  page.locator('.toolRow [data-action="add"]').click()
+  assert page.locator('#item-type').input_value()=='med', f'Adicionar ignorou filtro Medicamentos em {w}px'
+  page.locator('#item-title').fill('Medicamento fictício filtro')
+  page.locator('#item-dose').fill('Conforme prescrição')
+  page.locator('#item-times').fill('11:15')
+  page.locator('#item-form button[type="submit"]').click()
+  new_card=page.locator('.routine-card').filter(has_text='Medicamento fictício filtro')
+  assert new_card.is_visible(), f'Medicamento cadastrado não aparece sob filtro ativo em {w}px'
+  assert page.locator('[data-action="routine-filter"][data-filter="med"]').get_attribute('aria-pressed')=='true'
+  # A nonmatching search should not make the item just added disappear.
+  page.locator('#routine-search').fill('outro cadastro')
+  page.locator('.toolRow [data-action="add"]').click()
+  assert page.locator('#item-type').input_value()=='med'
+  page.locator('#item-title').fill('Segundo medicamento fictício')
+  page.locator('#item-times').fill('11:45')
+  page.locator('#item-form button[type="submit"]').click()
+  assert page.locator('#routine-search').input_value()=='', f'Busca ocultou novo cadastro em {w}px'
+  assert page.locator('.routine-card').filter(has_text='Segundo medicamento fictício').is_visible()
+  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), f'Cadastro filtrado causou overflow em {w}px'
   page.locator('[data-action="routine-filter"][data-filter="all"]').click()
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), f'Keyboard navigation overflow at {w}px'
   page.get_by_role('button',name='Timer',exact=True).click()
