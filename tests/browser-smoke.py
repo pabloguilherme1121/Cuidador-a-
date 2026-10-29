@@ -59,6 +59,15 @@ with TemporaryDirectory() as temp:
             page.locator('[data-action="legal"][data-page="privacidade"]').click()
             assert page.locator('#legalDialog').evaluate('(e)=>e.open')
             page.locator('[data-action="close-legal"]').click()
+            assert page.locator('#pg-help-title').is_visible(), f'Guia PG Bot ausente em {width}px'
+            page.locator('.pg-help details summary').first.click()
+            assert page.locator('.pg-help details').first.get_attribute('open') is not None
+            assert page.locator('.pg-help').evaluate('(el)=>el.getBoundingClientRect().width<=window.innerWidth')
+            page.locator('.pg-help-shortcuts [data-tab="room"]').click()
+            assert page.locator('h1').inner_text()=='Sala de Pacientes'
+            page.locator('.tabbtn[data-tab="settings"]').click()
+            page.locator('.pg-help-shortcuts [data-tab="timer"]').click()
+            assert page.locator('h1').inner_text()=='Timer de cuidados'
             page.locator('.tabbtn[data-tab="routine"]').click()
             page.locator('[data-action="add"]').first.click()
             page.locator('#item-title').fill('Almoço teste')
