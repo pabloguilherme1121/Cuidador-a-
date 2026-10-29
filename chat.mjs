@@ -67,6 +67,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   if(refreshButton)refreshButton.disabled=ui.refreshDisabled;
   if(sendButton)sendButton.disabled=ui.sendDisabled;
   if(clearButton)clearButton.disabled=ui.clearDisabled;
+  if(status)status.dataset.offline=String(!navigator.onLine);
   if(!navigator.onLine)setStatus('Sem conexão. As mensagens já carregadas continuam visíveis; o texto digitado não será enviado até a rede voltar.');
  };
  const paint=()=>{
