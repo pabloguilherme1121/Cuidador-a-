@@ -61,3 +61,8 @@ export function routineMatches(item,query='') {
  const needle=foldSearch(query).trim();
  return !needle||[item.title,item.note,item.dose].some(value=>foldSearch(value).includes(needle));
 }
+
+/** Refresh the Today dashboard on minute changes, without rebuilding it every poll. */
+export function shouldRefreshToday(previousMinute,currentMinute,tab,visible,onboarded){
+ return tab==='today'&&visible===true&&onboarded===true&&Number.isFinite(currentMinute)&&currentMinute!==previousMinute;
+}
