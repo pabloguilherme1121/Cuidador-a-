@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,roomCanSend,roomCanReceive} from '../room.mjs';
+import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,roomCanSend,roomCanReceive,timelineActionDisabled} from '../room.mjs';
 
 test('new room creates distinct viewing and editing invitations',async()=>{
  const owner=await createCredentials();
@@ -47,4 +47,11 @@ test('controles manuais de sincronização respeitam conexão e processamento',(
  assert.equal(roomCanReceive({connected:true,online:false,busy:false}),false);
  assert.equal(roomCanReceive({connected:true,online:true,busy:true}),false);
  assert.equal(roomCanReceive({connected:false,online:true,busy:false}),false);
+});
+
+test('resolver conflito pode abrir Sala offline, sem permitir sincronizar',()=>{
+ assert.equal(timelineActionDisabled({busy:false,online:false,conflict:true}),false);
+ assert.equal(timelineActionDisabled({busy:false,online:false,conflict:false}),true);
+ assert.equal(timelineActionDisabled({busy:false,online:true,conflict:false}),false);
+ assert.equal(timelineActionDisabled({busy:true,online:true,conflict:true}),true);
 });

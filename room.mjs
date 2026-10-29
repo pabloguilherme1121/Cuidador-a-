@@ -26,6 +26,9 @@ export function roomCanSend(room,{version=0,dirty=false,busy=false,conflict=fals
 export function roomCanReceive({connected=false,online=true,busy=false}={}){
  return connected===true&&online===true&&busy===false;
 }
+/** Resolver only navigates to the Sala; unlike sync, it does not need a network. */
+export const timelineActionDisabled=({busy=false,online=true,conflict=false}={})=>
+ busy===true||(online!==true&&conflict!==true);
 export async function completeCredentials(raw){
  if(!raw||!roomPattern.test(raw.id)||!keyPattern.test(raw.key))throw new Error('Link da sala inválido');
  if(raw.editorSecret&&!keyPattern.test(raw.editorSecret))throw new Error('Convite de edição inválido');

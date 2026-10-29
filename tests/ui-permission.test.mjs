@@ -40,3 +40,7 @@ test('botões manuais da Sala descrevem e respeitam o modo offline',()=>{
  assert.match(app,/Sem conexão: use as rotinas locais e sincronize quando a internet voltar\./);
  assert.match(app,/if\(!roomCanReceive\(\{connected:!!room,online:navigator.onLine,busy:roomBusy\}\)\)\{toast\('Sem conexão ou sincronização já em andamento\.'\);return\}/);
 });
+
+test('atalho visual Resolver usa política diferente da sincronização offline',()=>{
+ assert.match(app,/data-action="\$\{roomConflict\?'room-open':'room-sync'\}"\s+\$\{timelineActionDisabled\(\{busy:roomBusy,online:navigator.onLine,conflict:roomConflict\}\)\?'disabled':''\}/);
+});
