@@ -132,7 +132,36 @@ with TemporaryDirectory() as temp:
                     !document.querySelector('#chat-offline-fixture #'+id)?.disabled)""")
                 assert chat.locator('#chat-text').input_value()=='Rascunho local de teste'
                 assert chat.locator('#chat-status').get_attribute('data-offline')=='false'
+                chat.locator('#chat-text').fill('   ')
+                assert chat.locator('#chat-send').is_disabled(), 'Whitespace-only message must not submit'
+                chat.locator('#chat-text').fill('Primeira mensagem fictícia')
+                assert chat.locator('#chat-send').is_enabled()
+                # Intercept POST in this local test only, hold it to reproduce typing
+                # after the original click but before the server acknowledges it.
                 page.evaluate("""() => {
+                    const original=window.fetch.bind(window);
+                    window.__restoreChatFetch=()=>{window.fetch=original};
+                    window.fetch=(input,options={})=>{
+                      if(String(input).includes('/api/rooms/') && String(input).endsWith('/messages')){
+                        if(options.method==='POST')return new Promise(resolve=>{
+                          window.__completeChatPost=()=>resolve(new Response('{}',{status:201,headers:{'Content-Type':'application/json'}}));
+                        });
+                        return Promise.resolve(new Response(JSON.stringify({messages:[],cursor:''}),{
+                          status:200,headers:{'Content-Type':'application/json'}
+                        }));
+                      }
+                      return original(input,options);
+                    };
+                }""")
+                chat.locator('#chat-send').click()
+                page.wait_for_function("typeof window.__completeChatPost==='function'")
+                chat.locator('#chat-text').fill('Segunda mensagem fictícia ainda não enviada')
+                page.evaluate("window.__completeChatPost()")
+                page.wait_for_function("document.querySelector('#chat-offline-fixture #chat-form').dataset.sending!=='yes'")
+                assert chat.locator('#chat-text').input_value()=='Segunda mensagem fictícia ainda não enviada', 'Texto digitado durante envio foi apagado'
+                assert chat.locator('#chat-send').is_enabled()
+                page.evaluate("""() => {
+                    window.__restoreChatFetch?.();
                     window.__stopChatFixture?.();
                     document.getElementById('chat-offline-fixture')?.remove();
                 }""")
