@@ -223,15 +223,18 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     applyRoomSnapshot(payload);storeRoom({id:candidate.id,key:candidate.key,...(candidate.editorSecret?{editorSecret:candidate.editorSecret}:{}),...(r.legacy?{unsafeReadOnly:true}:{})},r.version);tab='room';toast('Sala conectada e rotinas recebidas.');
   }catch(e){roomError=e.message;toast('Não foi possível entrar: '+e.message)}finally{roomBusy=false;render()}}
   async function pullRoom(silent=false,force=false){if(!room||roomBusy)return;roomBusy=true;try{
-    const currentId=room.id,reader=await completeCredentials(room);
+    const activeRoom=room,currentId=activeRoom.id,reader=await completeCredentials(activeRoom);
     const headers={'X-Room-Read-Token':reader.readToken};
     if(roomVersion&&!force)headers['If-None-Match']=`"v${roomVersion}"`;
     const r=await roomRequest(roomUrl(currentId),{headers});
-    if(!room||room.id!==currentId)return;
+    if(room!==activeRoom)return;
     if(r.unchanged){roomSyncedAt=Date.now();persistRoom();if(!silent)toast(roomDirty?'Sala sem novas alterações; seu envio ainda está pendente.':'Sala já está atualizada.');return}
     if(r.version!==roomVersion||force){
       if(roomDirty&&!force){roomConflict=true;roomError='Outro aparelho alterou esta sala. Exporte um backup, depois escolha Receber e substituir. Seus dados locais não foram apagados.';persistRoom();if(!silent)toast(roomError);return}
-      const payload=await decryptRoom(room,r);applyRoomSnapshot(payload);
+      const payload=await decryptRoom(activeRoom,r);
+      // The room may have been disconnected or replaced in another tab while decrypting.
+      if(room!==activeRoom)return;
+      applyRoomSnapshot(payload);
       roomVersion=r.version;roomConflict=false;roomSyncedAt=Date.now();roomSnapshot=JSON.stringify(sharedSnapshot(state));persistRoom();
       if(!silent)toast('Alterações recebidas da sala.');
     }else if(!silent)toast('Sala já está atualizada.');

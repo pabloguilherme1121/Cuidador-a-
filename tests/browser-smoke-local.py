@@ -357,6 +357,51 @@ with sync_playwright() as p:
    assert conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")==previous_local, 'Desconexão de outra aba não deve apagar rotinas locais'
    assert not conflict_errors, f'Alteração externa da sala gerou erro JS: {conflict_errors}'
    conflicted.close()
+   # Test a GET which has returned, but whose room payload is still decrypting
+   # when another tab revokes the local session. No real keys/patients/network.
+   if w==390:
+    stale=b.new_page(viewport={'width':390,'height':820})
+    stale_errors=[]
+    stale.on('pageerror',lambda e:stale_errors.append(str(e)))
+    stale.set_content(html)
+    stale.evaluate("""() => {
+      const db=new Map([
+        ['cuidadora-room-v1',JSON.stringify({id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43),role:'editor',version:1,dirty:false,conflict:false})],
+        ['cuidadora-data-v2',JSON.stringify({version:1,profile:{name:'Teste',onboarded:true},settings:{},items:[{id:'med001',type:'med',title:'Medicamento local fictício',dose:'',note:'',days:[0,1,2,3,4,5,6],times:['08:00'],archived:false,createdAt:'2026-10-20T10:00:00.000Z'}],logs:{},noticeLog:{}})]
+      ]);
+      Object.defineProperty(window,'localStorage',{configurable:true,value:{
+        getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)
+      }});
+      window.fetch=async()=>({ok:true,status:200,json:async()=>({version:2})});
+    }""")
+    stale.add_style_tag(content=(ROOT/'styles.css').read_text())
+    stale.add_script_tag(content=core)
+    stale.add_script_tag(content=room)
+    stale.add_script_tag(content=timeline)
+    stale.add_script_tag(content="const chatMarkup=()=>'<section class=\"chat-card\"></section>';const chatDraftForRoom=()=>null;const mountRoomChat=()=>()=>{};")
+    stale.add_script_tag(content="""let releaseDecrypt;window.__decryptStarted=false;
+      window.__releaseDecrypt=()=>releaseDecrypt?.({version:1,items:[{id:'remote001',type:'med',title:'Medicamento remoto obsoleto',dose:'',note:'',days:[0,1,2,3,4,5,6],times:['09:00'],archived:false,createdAt:'2026-10-20T10:00:00.000Z'}],settings:{}});
+      completeCredentials=async()=>({readToken:'fictitious'});
+      decryptRoom=async()=>{window.__decryptStarted=true;return new Promise(resolve=>releaseDecrypt=resolve)};
+    """)
+    stale.add_script_tag(content=app)
+    stale.locator('.tabbtn[data-tab="room"]').click()
+    before=stale.evaluate("localStorage.getItem('cuidadora-data-v2')")
+    stale.locator('[data-action="room-pull"]').click()
+    stale.wait_for_function("window.__decryptStarted===true")
+    stale.evaluate("""() => {
+      const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
+      localStorage.removeItem(key);
+      window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue:null}));
+      window.__releaseDecrypt();
+    }""")
+    stale.wait_for_function("document.querySelector('[data-action=\"room-create\"]')!==null")
+    assert stale.evaluate("localStorage.getItem('cuidadora-data-v2')")==before, 'GET já recebido sobrescreveu dados locais após revogação da Sala'
+    stale.locator('.tabbtn[data-tab="routine"]').click()
+    assert stale.get_by_text('Medicamento local fictício').is_visible()
+    assert stale.get_by_text('Medicamento remoto obsoleto').count()==0
+    assert not stale_errors, f'Erro JS ao encerrar sessão durante decrypt: {stale_errors}'
+    stale.close()
    # Simulate a slow first chat read colliding with a send, using fictitious data.
    chat_page=b.new_page(viewport={'width':390,'height':820})
    chat_errors=[]
