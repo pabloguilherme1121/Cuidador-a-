@@ -44,3 +44,13 @@ test('botões manuais da Sala descrevem e respeitam o modo offline',()=>{
 test('atalho visual Resolver usa política diferente da sincronização offline',()=>{
  assert.match(app,/data-action="\$\{roomConflict\?'room-open':'room-sync'\}"\s+\$\{timelineActionDisabled\(\{busy:roomBusy,online:navigator.onLine,conflict:roomConflict\}\)\?'disabled':''\}/);
 });
+
+test('guia local PG Bot explica limites de alarmes, backup e salas sem compartilhar dados',()=>{
+ assert.match(app,/function renderHelp\(\)/, 'Ajuda local deve ter sua própria seção');
+ assert.match(app,/id="pg-help-title"/, 'Guia precisa de um nome acessível');
+ assert.match(app,/data-action="tab" data-tab="routine"/, 'Atalho deve abrir Rotina');
+ assert.match(app,/data-action="tab" data-tab="room"/, 'Atalho deve abrir Sala');
+ assert.match(app,/data-action="tab" data-tab="timer"/, 'Atalho deve abrir Timer');
+ assert.match(app,/O guia funciona sem IA e não envia dados/, 'Não deve prometer inteligência artificial ou enviar dados');
+ assert.match(app,/\$\{renderHelp\(\)\}/, 'Ajuda deve ser renderizada na Personalização');
+});
