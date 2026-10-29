@@ -156,7 +156,9 @@ with sync_playwright() as p:
   page.locator('[data-action="add"]').first.click()
   page.locator('#item-title').fill('Almoço teste')
   page.locator('#item-times').fill('12:30')
-  page.locator('#item-form button[type=submit]').click()
+  # Two near-simultaneous form submit events must not create duplicate care reminders.
+  page.locator('#item-form').evaluate("""form => {form.requestSubmit();form.requestSubmit()}""")
+  assert page.locator('.routine-card').filter(has_text='Almoço teste').count()==1, f'Envios repetidos criaram rotinas duplicadas em {w}px'
   assert page.get_by_text('Almoço teste').count()>0
   page.locator('#routine-search').fill('Almoco')
   assert page.locator('.routine-card:visible').count()==2, 'Busca deveria ignorar acentos'
