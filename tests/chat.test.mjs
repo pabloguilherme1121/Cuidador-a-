@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCredentials} from '../room.mjs';
-import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState,shouldPaintChat} from '../chat.mjs';
+import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState,shouldPaintChat,shouldClearSentDraft} from '../chat.mjs';
 import {roomApi} from '../cloudflare/worker.mjs';
 
 const base='https://cuidadora.example';
@@ -112,4 +112,14 @@ test('chat preserves existing DOM on unchanged polling, but updates first and fu
  assert.equal(shouldPaintChat({painted:true,full:false,changed:false}),false);
  assert.equal(shouldPaintChat({painted:true,full:false,changed:true}),true);
  assert.equal(shouldPaintChat({painted:true,full:true,changed:false}),true);
+});
+
+test('chat button waits for a meaningful draft and preserves new text typed during upload',()=>{
+ const ready={online:true,loading:false,sending:false,canSend:true};
+ assert.equal(chatControlsState({...ready,hasDraft:false}).sendDisabled,true);
+ assert.equal(chatControlsState({...ready,hasDraft:true}).sendDisabled,false);
+ assert.equal(shouldClearSentDraft('Primeira mensagem','Primeira mensagem'),true);
+ assert.equal(shouldClearSentDraft('Segunda mensagem','Primeira mensagem'),false);
+ assert.equal(shouldClearSentDraft('Primeira mensagem e complemento','Primeira mensagem'),false);
+ assert.equal(shouldClearSentDraft('','Primeira mensagem'),false);
 });

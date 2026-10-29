@@ -7,13 +7,15 @@ const ID=/^[\w-]{16}$/;
 export const validChatText=v=>typeof v==='string'&&v.trim().length>=1&&v.trim().length<=500;
 /** Keep the chat actions consistent with network and request state. */
 export const shouldPaintChat=({painted=false,full=false,changed=false}={})=>!painted||full||changed;
-export function chatControlsState({online=true,loading=false,sending=false,canSend=false}={}){
+export function chatControlsState({online=true,loading=false,sending=false,canSend=false,hasDraft=true}={}){
  return {
   refreshDisabled:online!==true||loading===true,
-  sendDisabled:online!==true||sending===true||canSend!==true,
+  sendDisabled:online!==true||sending===true||canSend!==true||hasDraft!==true,
   clearDisabled:online!==true||sending===true||canSend!==true
  };
 }
+/** Only clear the exact text that the server accepted; preserve typing during pending sends. */
+export const shouldClearSentDraft=(current,sent)=>current===sent;
 /** Limit the alias using the same Unicode code-point contract as encrypted messages. */
 export const limitChatAlias=value=>Array.from(String(value??'')).slice(0,28).join('');
 export const validChatEnvelope=v=>Boolean(v&&ID.test(v.id||'')&&/^[\w-]{16}$/.test(v.iv||'')&&/^[\w-]{22,2500}$/.test(v.ciphertext||''));
@@ -56,7 +58,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false,painted=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
  const refreshButton=element.querySelector('#chat-refresh'),sendButton=form?.querySelector('#chat-send'),clearButton=element.querySelector('#chat-clear');
- const alias=element.querySelector('#chat-alias');
+ const alias=element.querySelector('#chat-alias'),draft=form?.querySelector('#chat-text');
  try{if(alias)alias.value=limitChatAlias(localStorage.getItem('cuidadora-chat-alias')||'')}catch{}
  const clampAlias=event=>{if(event?.isComposing)return;if(alias)alias.value=limitChatAlias(alias.value)};
  alias?.addEventListener('input',clampAlias);
@@ -64,9 +66,9 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  const setStatus=text=>{if(alive&&status?.isConnected)status.textContent=text};
  const syncControls=()=>{
   if(!alive)return;
-  const ui=chatControlsState({online:navigator.onLine,loading,sending:form?.dataset.sending==='yes',canSend:roomCanEdit(room)});
+  const ui=chatControlsState({online:navigator.onLine,loading,sending:form?.dataset.sending==='yes',canSend:roomCanEdit(room),hasDraft:validChatText(draft?.value)});
   if(refreshButton)refreshButton.disabled=ui.refreshDisabled;
-  if(sendButton)sendButton.disabled=ui.sendDisabled;
+  if(sendButton){sendButton.disabled=ui.sendDisabled;sendButton.textContent=form?.dataset.sending==='yes'?'Enviando…':'Enviar mensagem';}
   if(clearButton)clearButton.disabled=ui.clearDisabled;
   if(status)status.dataset.offline=String(!navigator.onLine);
   if(!navigator.onLine)setStatus('Sem conexão. As mensagens já carregadas continuam visíveis; o texto digitado não será enviado até a rede voltar.');
@@ -121,7 +123,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const cred=await completeCredentials(room);
    const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Token':cred.token},body:JSON.stringify(encrypted),cache:'no-store'});
    if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
-   field.value='';try{localStorage.setItem('cuidadora-chat-alias',limitChatAlias(author))}catch{}
+   if(shouldClearSentDraft(field.value,message))field.value='';try{localStorage.setItem('cuidadora-chat-alias',limitChatAlias(author))}catch{}
    await refresh();setStatus('Mensagem enviada.');
   }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;syncControls()}
  };
@@ -130,6 +132,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   if(!roomCanEdit(room)||!confirm('Apagar todas as mensagens da sala em todos os aparelhos? Esta ação não pode ser desfeita.'))return;
   try{const cred=await completeCredentials(room);const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'DELETE',headers:{'X-Room-Token':cred.token},cache:'no-store'});if(!res.ok)throw Error('Falha ao apagar conversa');messages=[];cursor='';paint();setStatus('Conversa apagada para todos.')}catch(e){setStatus(e.message)}
  };
+ draft?.addEventListener('input',syncControls);
  form?.addEventListener('submit',submit);
  clearButton?.addEventListener('click',clear);
  const manualRefresh=()=>{idleCycles=0;void refresh(true)};
@@ -139,5 +142,5 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  refreshButton?.addEventListener('click',manualRefresh);
  document.addEventListener('visibilitychange',visibility);window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);
  syncControls();void refresh();
- return ()=>{alive=false;clearTimeout(timer);alias?.removeEventListener('input',clampAlias);alias?.removeEventListener('compositionend',clampAlias);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
+ return ()=>{alive=false;clearTimeout(timer);alias?.removeEventListener('input',clampAlias);alias?.removeEventListener('compositionend',clampAlias);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);draft?.removeEventListener('input',syncControls);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
 }
