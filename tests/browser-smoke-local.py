@@ -62,8 +62,8 @@ with sync_playwright() as p:
   page.locator('#item-form button[type=submit]').click()
   assert page.get_by_text('Almoço teste').count()>0
   page.locator('#routine-search').fill('Almoco')
-  assert page.locator('.routine-card:visible').count()==1, 'Busca deveria ignorar acentos'
-  assert page.locator('#routine-active-count').inner_text()=='1'
+  assert page.locator('.routine-card:visible').count()==2, 'Busca deveria ignorar acentos'
+  assert page.locator('#routine-active-count').inner_text()=='2'
   page.locator('#routine-search').fill('12:30')
   assert page.locator('.routine-card:visible').count()==0, 'Busca durante digitação não deve usar horários se o filtro não usa'
   assert page.locator('#routine-active-count').inner_text()=='0'
