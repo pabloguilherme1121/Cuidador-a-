@@ -1,6 +1,6 @@
 import {chatMarkup,mountRoomChat} from './chat.mjs';
 import {changeOccurrenceTime,removeOccurrenceTime,occurrenceDisplay} from './timeline.mjs';
-import {normalizePreferences,formatCountdown,isReminderWindow,reminderContent,inQuietHours,remainingSeconds,restoreTimer,todayHeroState,routineMatches} from './core.mjs';
+import {normalizePreferences,formatCountdown,isReminderWindow,reminderContent,inQuietHours,remainingSeconds,restoreTimer,todayHeroState,routineMatches,shouldRefreshToday} from './core.mjs';
 import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,sharedSnapshot,encryptRoom,decryptRoom,syncPlan,roomStatusLabel,roomRefreshIntervalMs,ROOM_STORAGE} from './room.mjs';
 (() => {
   'use strict';
@@ -424,7 +424,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
       if(tab==='timer')render();
     }
   });
-  let lastDay=dateKey(new Date());setInterval(()=>{const day=dateKey(new Date());if(day!==lastDay){lastDay=day;historyDay=day;render()}else if(tab==='today'&&state.profile.onboarded)render();checkReminders()},30000);
+  let lastDay=dateKey(new Date()),lastTodayMinute=Math.floor(Date.now()/60000);setInterval(()=>{const now=new Date(),day=dateKey(now),minute=Math.floor(now.getTime()/60000);if(day!==lastDay){lastDay=day;historyDay=day;render()}else if(shouldRefreshToday(lastTodayMinute,minute,tab,document.visibilityState==='visible',state.profile.onboarded))render();lastTodayMinute=minute;checkReminders()},30000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(tab==='today')render();checkReminders()}});
   function autoSyncRoom(){
     const plan=syncPlan({connected:!!room,visible:document.visibilityState==='visible',online:navigator.onLine,busy:roomBusy,pendingInvitation:!!pendingInvitation,conflict:roomConflict,dirty:roomDirty,canEdit:roomCanEdit(room)});
