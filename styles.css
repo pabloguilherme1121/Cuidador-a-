@@ -137,3 +137,9 @@ button[data-action='room-copy']{min-height:48px}
 .chat-sync .help{flex:1 1 170px;min-width:0;margin:0}
 .chat-sync .btn{min-height:44px;flex:0 0 auto}
 @media(max-width:360px){.chat-sync .btn{flex:1 1 100%}}
+
+/* Rotina: feedback da busca sem desmontar formulários ou mudar o scroll. */
+.routine-card[hidden]{display:none!important}
+.search-empty{margin:14px 0 8px;padding:14px 16px;line-height:1.55;border:1px solid var(--line);border-radius:14px;background:var(--tint);color:var(--fg);font-size:.86rem}
+.search-empty[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){.search-empty{transition:none}}
