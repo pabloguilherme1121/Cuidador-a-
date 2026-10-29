@@ -175,3 +175,6 @@ button[data-action='room-copy']{min-height:48px}
 .room-conflict-hint strong{font-weight:800}
 .room-conflict-hint .btn{margin-left:auto;min-height:44px;white-space:normal}
 @media(max-width:390px){.room-conflict-hint .btn{margin-left:0;width:100%}}
+
+/* Realce discreto do cartão enquanto seus controles têm foco via teclado. */
+.routine-card:focus-within{border-color:var(--strokeAccent);box-shadow:0 0 0 1px var(--strokeAccent)}
