@@ -44,3 +44,12 @@ test('botões manuais da Sala descrevem e respeitam o modo offline',()=>{
 test('atalho visual Resolver usa política diferente da sincronização offline',()=>{
  assert.match(app,/data-action="\$\{roomConflict\?'room-open':'room-sync'\}"\s+\$\{timelineActionDisabled\(\{busy:roomBusy,online:navigator.onLine,conflict:roomConflict\}\)\?'disabled':''\}/);
 });
+
+test('confirmação de exclusão revalida permissão; apagar dados só do aparelho continua separado',()=>{
+ assert.match(app,/if\(action==='wipe-routines'\)\{if\(room&&!roomCanEdit\(room\)\)\{toast\('Sala somente leitura\.'\);return\}/,
+  'Não abrir exclusão de rotinas em sala somente leitura');
+ assert.match(app,/if\(action==='wipe-routines-confirm'\)\{if\(room&&!roomCanEdit\(room\)\)\{toast\('Sala somente leitura\.'\);document\.getElementById\('confirmDialog'\)\.close\(\);return\}/,
+  'A confirmação deve checar novamente a permissão antes de mutar state.items');
+ assert.match(app,/if\(action==='wipe-confirm'\)\{localStorage\.removeItem\(KEY\)/,
+  'Excluir dados apenas deste aparelho deve continuar uma operação separada');
+});
