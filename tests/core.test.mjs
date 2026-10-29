@@ -56,3 +56,13 @@ test('sound profiles, volume and vibration preferences are whitelisted',()=>{
  const b=normalizePreferences({soundPreset:'unknown',volume:999,vibration:'yes'});
  assert.equal(b.soundPreset,'soft');assert.equal(b.volume,30);assert.equal(b.vibration,false);
 });
+
+// A stale storage flag must not mark a paused countdown as completed.
+test('paused timer ignores a stale finished flag while time remains',()=>{
+ const paused=restoreTimer({duration:300,remaining:120,running:false,deadline:null,finished:true},1000);
+ assert.equal(paused.remaining,120);
+ assert.equal(paused.running,false);
+ assert.equal(paused.finished,false);
+ const complete=restoreTimer({duration:300,remaining:0,running:false,deadline:null,finished:true},1000);
+ assert.equal(complete.finished,true);
+});
