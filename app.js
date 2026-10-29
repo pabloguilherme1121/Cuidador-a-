@@ -115,7 +115,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   }
   const safety=`<aside class="disclaimer">${icon('leaf',16)} <strong>Saúde em primeiro lugar.</strong> Siga sempre a receita e as orientações do profissional de saúde. Em caso de dose esquecida, consulte a bula ou seu profissional — não dobre a dose.</aside>`;
   function empty(title,detail,kind='clock') {return `<div class="empty"><div class="emptyicon">${icon(kind,27)}</div><h3>${esc(title)}</h3><p>${esc(detail)}</p></div>`}
-  function header(){return `<header class="topbar"><a class="brand" href="#hoje" data-action="tab" data-tab="today" aria-label="Cuidador(a), início"><span class="brandmark">${icon('sun',24)}</span><span>cuidador(a)<small>um cuidado de cada vez</small></span></a><span class="date-chip">${firstUpper(new Intl.DateTimeFormat('pt-BR',{day:'numeric',month:'short'}).format(new Date()))}</span></header>`}
+  function header(){return `<header class="topbar"><a class="brand" href="#hoje" data-action="tab" data-tab="today" aria-label="Cuidador(a), início"><span class="brandmark">${icon('sun',24)}</span><span>cuidador(a)<small>um cuidado de cada vez</small></span></a><div class="topbar-actions"><span class="date-chip">${firstUpper(new Intl.DateTimeFormat('pt-BR',{day:'numeric',month:'short'}).format(new Date()))}</span><button type="button" class="header-help" data-action="help" aria-label="Abrir ajuda PG Bot"><img src="./assets/pg-bot.webp" alt="" width="26" height="30" decoding="async"><span>Ajuda</span></button></div></header>`}
   function bottomNav(){return `<nav class="tabbar" aria-label="Navegação principal"><div class="tabbar-inner">${[['today','home','Hoje'],['routine','list','Rotina'],['room','users','Sala'],['timer','timer','Timer'],['history','history','Histórico'],['settings','settings','Ajustes']].map(([id,ico,title])=>`<button class="tabbtn" data-action="tab" data-tab="${id}" ${tab===id?'aria-current="page"':''}>${icon(ico,20)}<span>${title}</span></button>`).join('')}</div></nav>`}
   function greeting(){const h=new Date().getHours();return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'}
   function renderToday(){
@@ -145,7 +145,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   }
   function renderHelp(){
     return `<section class="panel setting-card pg-help" aria-labelledby="pg-help-title">
-      <div class="pg-help-head"><img src="./assets/pg-bot.webp" alt="" width="48" height="56" loading="lazy" decoding="async"><div><h2 id="pg-help-title">PG Bot · Ajuda rápida</h2><p class="help">Orientações simples para cuidar da sua rotina.</p></div></div>
+      <div class="pg-help-head"><img src="./assets/pg-bot.webp" alt="" width="48" height="56" loading="lazy" decoding="async"><div><h2 id="pg-help-title" tabindex="-1">PG Bot · Ajuda rápida</h2><p class="help">Orientações simples para cuidar da sua rotina.</p></div></div>
       <p class="help">O guia funciona sem IA e não envia dados. Nenhuma informação sobre medicamentos é analisada aqui.</p>
       <div class="pg-help-shortcuts" role="group" aria-label="Atalhos de ajuda">
         <button class="btn small ghost" type="button" data-action="tab" data-tab="routine">Abrir Rotina</button>
@@ -371,6 +371,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='room-leave-confirm'){document.getElementById('confirmDialog').close();leaveRoom();return}
     if(action==='room-delete'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Excluir sala de todos os aparelhos?</h2><p>O link deixará de funcionar e os dados criptografados serão excluídos da sala. Outros aparelhos manterão suas cópias locais.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="room-delete-confirm">Excluir sala</button></div>`;openDialog(dlg);return}
     if(action==='room-delete-confirm'){document.getElementById('confirmDialog').close();await deleteRoom();return}
+    if(action==='help'){e.preventDefault();tab='settings';render();const title=document.getElementById('pg-help-title');title?.focus({preventScroll:true});title?.scrollIntoView({block:'start',behavior:'instant'});return}
     if(action==='tab'){e.preventDefault();tab=el.dataset.tab;render();document.querySelector('.tabbar .tabbtn[aria-current="page"]')?.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});return}
     if(action==='skip'){state.profile.onboarded=true;save();render();return}
     if(action==='filter'){filter=el.dataset.filter;render();document.querySelector('.filterRow [data-action="filter"][aria-pressed="true"]')?.focus({preventScroll:true});return}
