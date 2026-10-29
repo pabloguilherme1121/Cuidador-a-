@@ -271,6 +271,16 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     setState(s=>{const logs={...s.logs};if(logs[key])delete logs[key];else logs[key]={doneAt:new Date().toISOString(),snapshot:{title:item.title,type:item.type,dose:item.dose,note:item.note}};return {...s,logs}});toast(prev?'Conclusão desfeita.':'Horário marcado como concluído.');
   }
   const openDialog=dialog=>{if(!dialog.open)dialog.showModal()};
+  function focusChangedTimelineItem(id,preferredTime=''){
+    const cards=[...document.querySelectorAll('.timeline-entry[data-occ-key]')]
+      .filter(card=>card.dataset.occKey?.split('|')[1]===id);
+    const available=cards.filter(card=>card.querySelector('[data-action="timeline-edit"]'));
+    const selected=available.find(card=>card.dataset.occKey?.endsWith('|'+preferredTime))||available[0];
+    const target=selected?.querySelector('[data-action="timeline-edit"]')
+      ||document.querySelector('.progresscard [data-action="add"]:not(:disabled)')
+      ||document.querySelector('.secondaryFilters [data-action="status-filter"][aria-pressed="true"]');
+    target?.focus({preventScroll:true});
+  }
   function openEditor(item=null,type='meal'){
     const box=document.getElementById('editDialog'),current=item||{type,title:'',dose:'',note:'',days:[0,1,2,3,4,5,6],times:[new Date().toTimeString().slice(0,5)]};
     box.innerHTML=`<form id="item-form" class="fieldgrid"><h2 id="dialogTitle">${item?'Editar horário':'Novo horário'}</h2><div class="field"><label for="item-type">Categoria</label><select id="item-type" name="type"><option value="meal" ${current.type==='meal'?'selected':''}>Refeição</option><option value="med" ${current.type==='med'?'selected':''}>Medicamento</option></select></div><div class="field"><label for="item-title">${current.type==='med'?'Nome do medicamento':'Nome da refeição'}</label><input id="item-title" name="title" type="text" maxlength="100" placeholder="Ex.: ${current.type==='med'?'Medicamento prescrito':'Café da manhã'}" value="${esc(current.title)}" required></div><div class="field" id="dose-field" ${current.type==='med'?'':'hidden'}><label for="item-dose">Dose escrita na receita (opcional)</label><input id="item-dose" type="text" name="dose" maxlength="100" placeholder="Copie exatamente a prescrição" value="${esc(current.dose)}"></div><div class="field"><label for="item-times">Horário${current.type==='med'?'s':''}</label><input id="item-times" name="times" type="text" inputmode="text" placeholder="08:00${current.type==='med'?', 20:00':''}" value="${esc(current.times.join(', '))}" required><p class="help" id="times-help">Use formato 24h (HH:mm). Para vários horários, separe com vírgula.</p></div><div><span class="group-label">Dias da semana</span><div class="daysrow" style="margin-top:9px">${WEEK.map((x,i)=>`<span class="daybox"><input id="dow-${i}" type="checkbox" name="days" value="${i}" ${current.days.includes(i)?'checked':''}><label for="dow-${i}" aria-label="${WEEKLONG[i]}">${x}</label></span>`).join('')}</div></div><div class="field"><label for="item-note">Observações (opcional)</label><textarea id="item-note" name="note" maxlength="500" placeholder="Detalhes que você quer lembrar">${esc(current.note)}</textarea></div><p class="help">Horários e doses de medicamentos devem vir de sua prescrição, nunca de sugestões do aplicativo.</p><div class="form-actions"><button class="btn ghost" type="button" data-action="close-edit">Cancelar</button><button class="btn primary" type="submit">Salvar horário</button></div></form>`;
@@ -413,7 +423,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='timeline-confirm-remove'){
       const item=state.items.find(x=>x.id===id);
       if(!item){toast('Horário não encontrado.');return}
-      try{const update=removeOccurrenceTime(item,el.dataset.time);setState(s=>({...s,items:update?s.items.map(x=>x.id===id?update:x):s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();toast('Horário removido. Histórico preservado.')}catch(err){toast(err.message)}return;
+      try{const update=removeOccurrenceTime(item,el.dataset.time);setState(s=>({...s,items:update?s.items.map(x=>x.id===id?update:x):s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();focusChangedTimelineItem(id);toast('Horário removido. Histórico preservado.')}catch(err){toast(err.message)}return;
     }
     if(action==='delete'){const item=state.items.find(x=>x.id===id);if(item)confirmDelete(item);return}
     if(action==='confirm-delete'){setState(s=>({...s,items:s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();document.querySelector('.toolRow [data-action="add"]:not(:disabled)')?.focus({preventScroll:true});toast('Horário removido.');return}
@@ -432,7 +442,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
       const dlg=document.getElementById('confirmDialog');const id=dlg.dataset.id,from=dlg.dataset.time;
       const item=state.items.find(x=>x.id===id&&!x.archived);
       if(!item){toast('Essa rotina não existe mais.');return}
-      try{const next=changeOccurrenceTime(item,from,String(new FormData(e.target).get('time')));setState(s=>({...s,items:s.items.map(x=>x.id===id?next:x)}));dlg.close();toast('Horário atualizado em todos os dias. Histórico preservado.')}catch(err){toast(err.message)}
+      try{const to=String(new FormData(e.target).get('time'));const next=changeOccurrenceTime(item,from,to);setState(s=>({...s,items:s.items.map(x=>x.id===id?next:x)}));dlg.close();focusChangedTimelineItem(id,to);toast('Horário atualizado em todos os dias. Histórico preservado.')}catch(err){toast(err.message)}
       return;
     }
     if(e.target?.id==='onboard-form'){e.preventDefault();const data=new FormData(e.target);const times=['Café da manhã','Almoço','Lanche','Jantar'];const items=[];for(let i=0;i<4;i++){if(!data.get('meal-'+i))continue;const time=data.get('time-'+i);if(!isTime(time)){toast('Corrija os horários das refeições.');return}items.push({id:uid(),type:'meal',title:times[i],dose:'',note:'',times:[time],days:[0,1,2,3,4,5,6],archived:false,createdAt:new Date().toISOString()})}state.profile={name:String(data.get('name')||'').trim().slice(0,60),onboarded:true};state.items=items;save();render();toast('Sua rotina começou! Os horários podem ser editados.');}
