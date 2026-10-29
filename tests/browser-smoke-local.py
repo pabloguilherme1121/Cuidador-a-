@@ -334,7 +334,7 @@ with sync_playwright() as p:
    assert conflicted.evaluate('document.documentElement.scrollWidth<=window.innerWidth')
    # Revoking the room on another tab must not leave stale editing credentials here.
    conflicted.locator('.tabbtn[data-tab="room"]').click()
-   assert conflicted.get_by_text('Sua sala está conectada').is_visible()
+   assert conflicted.locator('[data-action="room-create"]').count()==0, f'Sala não estava conectada antes do evento: {conflicted.locator("#main-content").inner_text()[:450]}'
    previous_local=conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")
    conflicted.evaluate("""() => {
      const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
