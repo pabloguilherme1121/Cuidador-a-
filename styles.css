@@ -202,3 +202,6 @@ button[data-action='room-copy']{min-height:48px}
 #pg-help-title{scroll-margin-top:22px}
 #pg-help-title:focus{outline:3px solid #eb994d;outline-offset:4px;border-radius:3px}
 @media(max-width:420px){.topbar .date-chip{display:none}.topbar{gap:8px}}
+
+/* Destaque discreto ao operar os horários da linha do tempo por teclado. */
+.timeline-entry:focus-within{border-color:var(--strokeAccent);box-shadow:0 0 0 1px var(--strokeAccent)}
