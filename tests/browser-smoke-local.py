@@ -70,6 +70,11 @@ with sync_playwright() as p:
   page.locator('#routine-search').fill('inexistente')
   assert page.locator('.routine-card:visible').count()==0
   assert page.locator('#routine-search-empty').is_visible()
+  page.get_by_role('button',name='Limpar busca',exact=True).click()
+  assert page.locator('#routine-search').input_value()==''
+  assert page.locator('#routine-search').evaluate('(el)=>document.activeElement===el')
+  assert not page.locator('#routine-search-empty').is_visible()
+  assert page.locator('.routine-card:visible').count()>=5
   page.locator('.tabbtn[data-tab="today"]').click()
   page.locator('[data-action="add"][data-type="med"]').first.click()
   page.locator('#item-title').fill('Medicamento teste')
