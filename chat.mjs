@@ -132,7 +132,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Token':cred.token},body:JSON.stringify(encrypted),cache:'no-store'});
    if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
    if(shouldClearSentDraft(field.value,message))field.value='';try{localStorage.setItem('cuidadora-chat-alias',limitChatAlias(author))}catch{}
-   await refresh();setStatus('Mensagem enviada.');
+   await refresh(true);setStatus('Mensagem enviada.');
   }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;syncControls()}
  };
  const clear=async()=>{
