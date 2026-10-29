@@ -108,6 +108,32 @@ with TemporaryDirectory() as temp:
                 page.locator('.tabbtn[data-tab="routine"]').click()
                 assert page.get_by_text('Almoço teste').count()>0,'Local data not available offline'
                 context.set_offline(False)
+                # Mount a fake, isolated chat panel. No real room, patient or message is used.
+                page.evaluate("""async () => {
+                    const {chatMarkup,mountRoomChat} = await import('./chat.mjs');
+                    const host=document.createElement('div');
+                    host.id='chat-offline-fixture';
+                    host.innerHTML=chatMarkup(true);
+                    document.body.append(host);
+                    window.__stopChatFixture=mountRoomChat(host,{
+                        id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43)
+                    });
+                }""")
+                chat=page.locator('#chat-offline-fixture')
+                chat.locator('#chat-text').fill('Rascunho local de teste')
+                context.set_offline(True)
+                page.wait_for_function("""() => ['chat-refresh','chat-send','chat-clear'].every(id =>
+                    document.querySelector('#chat-offline-fixture #'+id)?.disabled)""")
+                assert 'Sem conexão' in chat.locator('#chat-status').inner_text()
+                assert chat.locator('#chat-text').input_value()=='Rascunho local de teste'
+                context.set_offline(False)
+                page.wait_for_function("""() => ['chat-refresh','chat-send','chat-clear'].every(id =>
+                    !document.querySelector('#chat-offline-fixture #'+id)?.disabled)""")
+                assert chat.locator('#chat-text').input_value()=='Rascunho local de teste'
+                page.evaluate("""() => {
+                    window.__stopChatFixture?.();
+                    document.getElementById('chat-offline-fixture')?.remove();
+                }""")
             page.locator('.tabbtn[data-tab="settings"]').click()
             page.locator('[data-action="wipe"]').click()
             assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
