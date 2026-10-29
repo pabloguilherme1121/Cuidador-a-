@@ -67,6 +67,11 @@ with sync_playwright() as p:
   assert page.locator('#routine-search').input_value()=='', f'Busca ocultou novo cadastro em {w}px'
   assert page.locator('.routine-card').filter(has_text='Segundo medicamento fictício').is_visible()
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), f'Cadastro filtrado causou overflow em {w}px'
+  # Remove only the two synthetic entries to preserve the existing smoke fixture.
+  for title in ['Medicamento fictício filtro','Segundo medicamento fictício']:
+   page.locator('.routine-card').filter(has_text=title).locator('[data-action="delete"]').click()
+   page.locator('#confirmDialog [data-action="confirm-delete"]').click()
+   assert page.locator('.routine-card').filter(has_text=title).count()==0
   page.locator('[data-action="routine-filter"][data-filter="all"]').click()
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), f'Keyboard navigation overflow at {w}px'
   page.get_by_role('button',name='Timer',exact=True).click()
