@@ -335,6 +335,14 @@ with sync_playwright() as p:
    # Revoking the room on another tab must not leave stale editing credentials here.
    conflicted.locator('.tabbtn[data-tab="room"]').click()
    assert conflicted.locator('[data-action="room-create"]').count()==0, f'Sala não estava conectada antes do evento: {conflicted.locator("#main-content").inner_text()[:450]}'
+   # A version change in the same room must not accidentally log out the other tab.
+   conflicted.evaluate("""() => {
+     const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
+     const next={...JSON.parse(oldValue),version:2};
+     localStorage.setItem(key,JSON.stringify(next));
+     window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue:JSON.stringify(next)}));
+   }""")
+   assert conflicted.locator('[data-action="room-create"]').count()==0, 'Atualizar versão da Sala não deve desconectar outra aba'
    previous_local=conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")
    conflicted.evaluate("""() => {
      const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
