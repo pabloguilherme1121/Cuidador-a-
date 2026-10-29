@@ -125,11 +125,13 @@ with TemporaryDirectory() as temp:
                 page.wait_for_function("""() => ['chat-refresh','chat-send','chat-clear'].every(id =>
                     document.querySelector('#chat-offline-fixture #'+id)?.disabled)""")
                 assert 'Sem conexão' in chat.locator('#chat-status').inner_text()
+                assert chat.locator('#chat-status').get_attribute('data-offline')=='true'
                 assert chat.locator('#chat-text').input_value()=='Rascunho local de teste'
                 context.set_offline(False)
                 page.wait_for_function("""() => ['chat-refresh','chat-send','chat-clear'].every(id =>
                     !document.querySelector('#chat-offline-fixture #'+id)?.disabled)""")
                 assert chat.locator('#chat-text').input_value()=='Rascunho local de teste'
+                assert chat.locator('#chat-status').get_attribute('data-offline')=='false'
                 page.evaluate("""() => {
                     window.__stopChatFixture?.();
                     document.getElementById('chat-offline-fixture')?.remove();
