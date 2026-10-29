@@ -77,3 +77,12 @@ test('tela Hoje só reconstrói quando o minuto muda e ela está visível',()=>{
  assert.equal(shouldRefreshToday(100,101,'today',false,true),false);
  assert.equal(shouldRefreshToday(100,101,'today',true,false),false);
 });
+
+test('paused timer ignores a stale finished flag while time remains',()=>{
+ const paused=restoreTimer({duration:300,remaining:120,running:false,deadline:null,finished:true},1000);
+ assert.equal(paused.remaining,120);
+ assert.equal(paused.running,false);
+ assert.equal(paused.finished,false);
+ const complete=restoreTimer({duration:300,remaining:0,running:false,deadline:null,finished:true},1000);
+ assert.equal(complete.finished,true);
+});
