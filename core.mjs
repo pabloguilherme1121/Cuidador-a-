@@ -31,7 +31,7 @@ export function restoreTimer(raw, now=Date.now()) {
   const remaining=Math.min(raw.duration,remainingSeconds(raw.deadline,now));
   return {duration:raw.duration,remaining,running:remaining>0,deadline:remaining>0?raw.deadline:null,finished:remaining===0};
  }
- return {duration:raw.duration,remaining:raw.remaining,running:false,deadline:null,finished:raw.finished===true};
+ return {duration:raw.duration,remaining:raw.remaining,running:false,deadline:null,finished:raw.finished===true&&raw.remaining===0};
 }
 
 /** Reminders are only checked in the foreground; never promise background alarms. */
