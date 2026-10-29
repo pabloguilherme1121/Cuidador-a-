@@ -160,6 +160,18 @@ with sync_playwright() as p:
    assert viewer.locator('[data-action="import"]').is_disabled()
    assert viewer.locator('#import-file').is_disabled()
    assert viewer.locator('[data-action="wipe-routines"]').is_disabled()
+   # Simulate a stale open confirmation button: the delegated action must
+   # recheck viewer permissions even if it is triggered directly.
+   before=viewer.evaluate("localStorage.getItem('cuidadora-data-v2')")
+   viewer.evaluate("""() => {
+     const stale=document.createElement('button');
+     stale.dataset.action='wipe-routines-confirm';
+     document.body.appendChild(stale);
+     stale.click();
+     stale.remove();
+   }""")
+   assert viewer.evaluate("localStorage.getItem('cuidadora-data-v2')")==before, 'Read-only viewer changed local routines'
+   assert 'Sala somente leitura' in viewer.locator('#toast').inner_text()
    assert viewer.locator('[data-action="backup"]').is_enabled()
    assert viewer.locator('[data-action="wipe"]').is_enabled()
    assert viewer.get_by_text('Somente visualização: para trocar ou apagar suas rotinas, desconecte esta sala primeiro.').is_visible()
