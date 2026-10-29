@@ -123,6 +123,16 @@ with sync_playwright() as p:
   assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
   page.locator('[data-action="cancel-delete"]').click()
   assert page.locator('#confirmDialog').evaluate('(e)=>!e.open')
+  if w==390:
+   # Fake, local-only viewer credentials. No patient data or external API.
+   page.evaluate("() => localStorage.setItem('cuidadora-room-v1', JSON.stringify({id:'A'.repeat(22),key:'B'.repeat(43),role:'viewer'}))")
+   page.reload(wait_until='load')
+   page.locator('.tabbtn[data-tab="settings"]').click()
+   assert page.locator('[data-action="import"]').is_disabled()
+   assert page.locator('[data-action="wipe-routines"]').is_disabled()
+   assert page.locator('[data-action="wipe"]').is_enabled()
+   assert page.get_by_text('Somente visualização: para trocar ou apagar suas rotinas, desconecte esta sala primeiro.').is_visible()
+   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), 'Leitura overflow em 390px'
   assert not errors, f'JS errors at {w}: {errors}'
   print(f'{w}px: onboarding, tabs, timer, theme, palette, legal, CRUD and search passed')
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-mobile.png'),full_page=True)
