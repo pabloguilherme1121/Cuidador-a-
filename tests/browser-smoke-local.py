@@ -332,6 +332,7 @@ with sync_playwright() as p:
    chat_page.locator('#chat-text').fill('Mensagem fictícia enviada')
    chat_page.locator('#chat-send').click()
    chat_page.wait_for_function('window.__chatSent===true',timeout=4000)
+   chat_page.wait_for_function("document.querySelector('#chat-status')?.textContent==='Mensagem enviada.'",timeout=4000)
    chat_page.evaluate('window.__releaseFirstRead()')
    chat_page.wait_for_function("document.querySelector('.chat-message p')?.textContent==='Mensagem fictícia enviada'",timeout=2200)
    assert chat_page.locator('.chat-message').count()==1, 'Chat deve mostrar o envio sem duplicar cartões'
