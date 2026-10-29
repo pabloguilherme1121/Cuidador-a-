@@ -85,8 +85,12 @@ with sync_playwright() as p:
   assert page.locator('#sound-preset').count()==1
   assert page.locator('#vibration-choice').count()==1
   assert page.locator('#private-notification-choice').is_checked(), 'Private lock-screen notifications must default to enabled'
-  page.locator('[data-action="accent"][data-accent="ocean"]').click()
+  palette=page.locator('[data-action="accent"][data-accent="ocean"]')
+  palette.focus()
+  page.keyboard.press('Enter')
   assert page.evaluate('document.documentElement.dataset.accent')=='ocean'
+  assert palette.get_attribute('aria-pressed')=='true'
+  assert palette.evaluate('(el)=>document.activeElement===el'), f'Paleta perdeu foco após mudança de cor: {w}px'
   page.locator('#theme-choice').select_option('dark')
   assert page.evaluate('document.documentElement.dataset.theme')=='dark'
   page.locator('[data-action="legal"][data-page="privacidade"]').click()
@@ -129,7 +133,11 @@ with sync_playwright() as p:
   page.locator('#timeline-time-value').fill('09:15')
   page.locator('#timeline-time-form button[type=submit]').click()
   assert page.locator('.entry-time').all_inner_texts()==['09:15','20:00']
-  page.locator('.entry[data-occ-key$="09:15"] [data-action="toggle"]').click()
+  done_button=page.locator('.entry[data-occ-key$="09:15"] [data-action="toggle"]')
+  done_button.focus()
+  page.keyboard.press('Enter')
+  assert page.locator('.entry[data-occ-key$="09:15"] .status').inner_text()=='Concluído'
+  assert done_button.evaluate('(el)=>document.activeElement===el'), f'Concluir horário perdeu foco: {w}px'
   page.locator('.entry[data-occ-key$="09:15"] [data-action="timeline-edit"]').click()
   page.locator('#timeline-time-value').fill('10:00')
   page.locator('#timeline-time-form button[type=submit]').click()
@@ -142,6 +150,18 @@ with sync_playwright() as p:
 
   page.locator('.tabbtn[data-tab="history"]').click()
   assert page.get_by_text('Medicamento teste').count()>=2
+  today=page.locator('#history-date').input_value()
+  previous=page.locator('[data-action="day"][data-delta="-1"]')
+  previous.focus()
+  page.keyboard.press('Enter')
+  assert page.locator('#history-date').input_value()!=today
+  assert previous.evaluate('(el)=>document.activeElement===el'), f'Voltar um dia perdeu foco: {w}px'
+  next_day=page.locator('[data-action="day"][data-delta="1"]')
+  next_day.focus()
+  page.keyboard.press('Enter')
+  assert page.locator('#history-date').input_value()==today
+  assert next_day.is_disabled(), 'Próximo dia deve ficar desabilitado no dia atual'
+  assert page.locator('#history-date').evaluate('(el)=>document.activeElement===el'), f'Foco não voltou à data quando Próximo dia foi desabilitado: {w}px'
   page.locator('.tabbtn[data-tab="settings"]').click()
   page.locator('[data-action="wipe"]').click()
   assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
