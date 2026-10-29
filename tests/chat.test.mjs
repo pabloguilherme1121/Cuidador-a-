@@ -95,13 +95,14 @@ test('chat alias form respects 28 Unicode code points, including emoji input',()
 
 test('chat blocks requests offline without losing the editable draft',()=>{
  const active={online:true,loading:false,sending:false,canSend:true};
- assert.deepEqual(chatControlsState(active),{refreshDisabled:false,sendDisabled:false});
- assert.deepEqual(chatControlsState({...active,online:false}),{refreshDisabled:true,sendDisabled:true});
- assert.deepEqual(chatControlsState({...active,loading:true}),{refreshDisabled:true,sendDisabled:false});
- assert.deepEqual(chatControlsState({...active,sending:true}),{refreshDisabled:false,sendDisabled:true});
+ assert.deepEqual(chatControlsState(active),{refreshDisabled:false,sendDisabled:false,clearDisabled:false});
+ assert.deepEqual(chatControlsState({...active,online:false}),{refreshDisabled:true,sendDisabled:true,clearDisabled:true});
+ assert.deepEqual(chatControlsState({...active,loading:true}),{refreshDisabled:true,sendDisabled:false,clearDisabled:false});
+ assert.deepEqual(chatControlsState({...active,sending:true}),{refreshDisabled:false,sendDisabled:true,clearDisabled:true});
  assert.deepEqual(chatControlsState({...active,canSend:false}),{refreshDisabled:false,sendDisabled:true});
  const markup=chatMarkup(true);
  assert.match(markup, /id="chat-text"[^>]*>/);
  assert.match(markup, /id="chat-send"/);
+ assert.match(markup, /id="chat-clear"/);
  assert.match(markup, /id="chat-refresh"/);
 });
