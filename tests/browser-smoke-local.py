@@ -132,6 +132,40 @@ with sync_playwright() as p:
   assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
   page.locator('[data-action="cancel-delete"]').click()
   assert page.locator('#confirmDialog').evaluate('(e)=>!e.open')
+  if w==390:
+   # Separate fixture: set fake local viewer data before bootstrapping the app.
+   # set_content() lives on about:blank; page.reload() would discard the fixture.
+   viewer=b.new_page(viewport={'width':390,'height':820})
+   viewer_errors=[]
+   viewer.on('pageerror',lambda e:viewer_errors.append(str(e)))
+   viewer.set_content(html)
+   viewer.evaluate("""() => {
+     const db=new Map([
+       ['cuidadora-room-v1',JSON.stringify({id:'A'.repeat(22),key:'B'.repeat(43),role:'viewer'})],
+       ['cuidadora-data-v2',JSON.stringify({version:1,profile:{name:'Teste',onboarded:true},items:[],settings:{},logs:{},noticeLog:{}})]
+     ]);
+     Object.defineProperty(window,'localStorage',{configurable:true,value:{
+       getItem:k=>db.get(k)||null,
+       setItem:(k,v)=>db.set(k,v),
+       removeItem:k=>db.delete(k)
+     }});
+   }""")
+   viewer.add_style_tag(content=(ROOT/'styles.css').read_text())
+   viewer.add_script_tag(content=core)
+   viewer.add_script_tag(content=room)
+   viewer.add_script_tag(content=timeline)
+   viewer.add_script_tag(content=app)
+   assert viewer.locator('.tabbtn').count()==6
+   viewer.locator('.tabbtn[data-tab="settings"]').click()
+   assert viewer.locator('[data-action="import"]').is_disabled()
+   assert viewer.locator('#import-file').is_disabled()
+   assert viewer.locator('[data-action="wipe-routines"]').is_disabled()
+   assert viewer.locator('[data-action="backup"]').is_enabled()
+   assert viewer.locator('[data-action="wipe"]').is_enabled()
+   assert viewer.get_by_text('Somente visualização: para trocar ou apagar suas rotinas, desconecte esta sala primeiro.').is_visible()
+   assert viewer.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), 'Leitura overflow em 390px'
+   assert not viewer_errors, f'Sala de leitura teve erro JS: {viewer_errors}'
+   viewer.close()
   assert not errors, f'JS errors at {w}: {errors}'
   print(f'{w}px: onboarding, tabs, timer, theme, palette, legal, CRUD and search passed')
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-mobile.png'),full_page=True)
