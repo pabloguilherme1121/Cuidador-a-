@@ -42,6 +42,9 @@ with TemporaryDirectory() as temp:
                 page.wait_for_timeout(200)
                 before=page.locator('#timer-display').inner_text()
             assert before!='05:00', f'Timer not counting at {width}px'
+            # The visual ring must be driven by actual remaining time, not a fixed 75%.
+            progress=page.locator('.timer-ring').evaluate("(el)=>parseFloat(el.style.getPropertyValue('--timer-progress'))")
+            assert 0 <= progress < 100, f'Timer visual progress did not advance at {width}px: {progress}'
             page.reload(wait_until='load')
             page.locator('.tabbtn[data-tab="timer"]').click()
             assert page.locator('#timer-display').inner_text()!='05:00',f'Timer lost after reload at {width}px'

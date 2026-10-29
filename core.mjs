@@ -66,3 +66,9 @@ export function routineMatches(item,query='') {
 export function shouldRefreshToday(previousMinute,currentMinute,tab,visible,onboarded){
  return tab==='today'&&visible===true&&onboarded===true&&Number.isFinite(currentMinute)&&currentMinute!==previousMinute;
 }
+
+/** Percentage of the countdown still available, usable by the visual timer ring. */
+export function timerProgressPercent(remaining,duration){
+ if(!Number.isFinite(remaining)||!Number.isFinite(duration)||duration<=0)return 0;
+ return Math.round(Math.max(0,Math.min(100,remaining/duration*100))*100)/100;
+}
