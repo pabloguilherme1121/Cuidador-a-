@@ -1,4 +1,4 @@
-import {chatMarkup,mountRoomChat} from './chat.mjs';
+import {chatMarkup,mountRoomChat,chatDraftForRoom} from './chat.mjs';
 import {changeOccurrenceTime,removeOccurrenceTime,occurrenceDisplay} from './timeline.mjs';
 import {normalizePreferences,formatCountdown,isReminderWindow,reminderContent,inQuietHours,remainingSeconds,restoreTimer,todayHeroState,routineMatches,shouldRefreshToday,timerProgressPercent} from './core.mjs';
 import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,roomCanSend,roomCanReceive,sharedSnapshot,encryptRoom,decryptRoom,syncPlan,roomStatusLabel,roomRefreshIntervalMs,ROOM_STORAGE} from './room.mjs';
@@ -77,7 +77,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   let room=null,roomVersion=0,roomDirty=false,roomConflict=false,roomSyncedAt=0,roomSnapshot='',roomBusy=false,roomError='',roomDebounce=null,pendingInvitation=parseRoomFragment(location.hash);
   try{const r=JSON.parse(localStorage.getItem(ROOM_STORAGE)||'null');if(r&&/^[\w-]{22}$/.test(r.id)&&/^[\w-]{43}$/.test(r.key)){room={id:r.id,key:r.key,...(r.editorSecret?{editorSecret:r.editorSecret}:(r.role==='viewer'?(r.unsafeReadOnly?{unsafeReadOnly:true}:{}):{legacy:true}))};roomVersion=Number(r.version)||0;roomDirty=r.dirty===true;roomConflict=r.conflict===true;roomSyncedAt=Number(r.syncedAt)||0;}}catch{}
   const persistRoom=()=>{try{if(room)localStorage.setItem(ROOM_STORAGE,JSON.stringify({id:room.id,key:room.key,...(room.editorSecret?{editorSecret:room.editorSecret}:{}),...(room.unsafeReadOnly?{unsafeReadOnly:true}:{}),role:roomCanEdit(room)?'editor':'viewer',...(!room.editorSecret&&room.legacy?{legacy:true}:{}),version:roomVersion,dirty:roomDirty,conflict:roomConflict,syncedAt:roomSyncedAt}));else localStorage.removeItem(ROOM_STORAGE)}catch{}};
-  let stopChat=()=>{};
+  let stopChat=()=>{},chatRoomMounted=null,chatDraftMemory=null;
   let state=initial();
   try {const raw=localStorage.getItem(KEY)||localStorage.getItem(LEGACY);if(raw)state=validate(JSON.parse(raw))}catch(err){console.warn('Armazenamento recuperado com padrão seguro:',err)}
   let tab='today',filter='all',statusFilter='all',routineFilter='all',historyDay=dateKey(new Date()),deferredInstall=null,toastTimer=0,storageWarned=false,searchQuery='';
@@ -154,11 +154,30 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     acessibilidade:`<h2 id="legalTitle">Acessibilidade</h2><p>Use a personalização de texto grande, o modo escuro, os alvos de toque ampliados, o teclado e os indicadores textuais de estado. Para melhorias, registre um relato no repositório oficial quando publicado. O projeto respeita a preferência de redução de movimento do sistema.</p>`
   };
   function renderOnboard(){const options=[['Café da manhã','07:30'],['Almoço','12:00'],['Lanche','16:00'],['Jantar','19:00']];return `<section class="onboard"><div class="onboard-header"><span class="brandmark">${icon('sun',30)}</span><p class="eyebrow">Boas-vindas</p><h1>Mais leveza para sua rotina.</h1><p class="subtle">Refeições e medicamentos no seu tempo, sem complicação.</p></div><div class="panel"><form id="onboard-form" class="fieldgrid"><div class="field"><label for="onboard-name">Como podemos chamar você?</label><input id="onboard-name" name="name" maxlength="60" placeholder="Seu nome (opcional)" autocomplete="nickname"></div><div><p class="group-label">Quer começar com refeições?</p><p class="help">São apenas sugestões editáveis. Desmarque o que não quiser.</p>${options.map(([label,time],i)=>`<div class="meal-preset"><input type="checkbox" checked id="meal-${i}" name="meal-${i}"><span><label for="meal-${i}">${label}</label></span><input type="time" id="time-${i}" name="time-${i}" value="${time}" aria-label="Horário de ${label}"></div>`).join('')}</div><p class="help">Não adicionamos medicamentos automaticamente. Cadastre somente conforme sua prescrição.</p><button class="btn primary full" type="submit">Criar minha rotina ${icon('right',18)}</button><button class="btn ghost full" type="button" data-action="skip">Começar sem horários</button></form></div></section>`}
-  function render(){stopChat();stopChat=()=>{};const prefs=normalizePreferences(state.settings);const dark=prefs.theme==='dark'||(prefs.theme==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.accent=prefs.accent;document.documentElement.dataset.scale=prefs.scale;document.documentElement.dataset.density=prefs.density;document.querySelector('meta[name="theme-color"]').content=dark?'#14231e':'#17483f';const root=document.getElementById('app');
+  function render(){
+    // Preserve unsent text in memory across room updates, never localStorage.
+    const previousRoot=document.getElementById('app');
+    const oldText=previousRoot?.querySelector('.chat-card #chat-text');
+    const oldAlias=previousRoot?.querySelector('.chat-card #chat-alias');
+    const priorFocus=oldText&&document.activeElement===oldText?'text':oldAlias&&document.activeElement===oldAlias?'alias':null;
+    if(oldText&&room&&chatRoomMounted===room.id)chatDraftMemory={roomId:room.id,text:oldText.value,alias:oldAlias?.value||''};
+    else if(!room||chatDraftMemory?.roomId!==room.id)chatDraftMemory=null;
+    stopChat();stopChat=()=>{};const prefs=normalizePreferences(state.settings);const dark=prefs.theme==='dark'||(prefs.theme==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.accent=prefs.accent;document.documentElement.dataset.scale=prefs.scale;document.documentElement.dataset.density=prefs.density;document.querySelector('meta[name="theme-color"]').content=dark?'#14231e':'#17483f';const root=document.getElementById('app');
     if(pendingInvitation){root.innerHTML=`<div class="app-frame">${renderInvitation()}</div>`;return}
     if(!state.profile.onboarded){root.innerHTML=`<div class="app-frame">${renderOnboard()}</div>`;return}
     root.innerHTML=`<div class="app-frame">${header()}<main id="main-content">${tab==='routine'?renderRoutine():tab==='history'?renderHistory():tab==='settings'?renderSettings():tab==='room'?renderRoom():tab==='timer'?renderTimer():renderToday()}</main></div>${bottomNav()}`;
-    if(tab==='room'&&room)stopChat=mountRoomChat(root.querySelector('.chat-card'),room);
+    if(tab==='room'&&room){
+      stopChat=mountRoomChat(root.querySelector('.chat-card'),room);
+      chatRoomMounted=room.id;
+      const draft=chatDraftForRoom(chatDraftMemory,room.id);
+      if(draft){
+        const text=root.querySelector('.chat-card #chat-text'),alias=root.querySelector('.chat-card #chat-alias');
+        if(alias)alias.value=draft.alias;
+        if(text){text.value=draft.text;text.dispatchEvent(new Event('input',{bubbles:true}))}
+        if(priorFocus==='text')text?.focus({preventScroll:true});
+        else if(priorFocus==='alias')alias?.focus({preventScroll:true});
+      }
+    }else chatRoomMounted=null;
   }
   function storeRoom(roomData,version){room=roomData;roomVersion=version;roomDirty=false;roomConflict=false;roomSyncedAt=Date.now();roomError='';roomSnapshot=JSON.stringify(sharedSnapshot(state));persistRoom()}
   const roomUrl=id=>`/api/rooms/${encodeURIComponent(id)}`;

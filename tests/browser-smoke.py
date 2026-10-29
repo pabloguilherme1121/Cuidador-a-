@@ -172,6 +172,32 @@ with TemporaryDirectory() as temp:
             assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
             page.locator('[data-action="cancel-delete"]').click()
             assert page.locator('#confirmDialog').evaluate('(e)=>!e.open')
+            if width==390:
+                # Fake editor room; no API, patient data or real credentials.
+                page.route('**/api/rooms/*/messages*', lambda route: route.fulfill(
+                    status=200,content_type='application/json',body='{"messages":[],"cursor":""}'))
+                page.evaluate("""() => localStorage.setItem('cuidadora-room-v1',JSON.stringify({
+                    id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43),
+                    role:'editor',version:1,dirty:false,conflict:false
+                }))""")
+                page.reload(wait_until='load')
+                page.locator('.tabbtn[data-tab="room"]').click()
+                active_chat=page.locator('.chat-card')
+                active_chat.locator('#chat-alias').fill('Familiar teste')
+                active_chat.locator('#chat-text').fill('Rascunho privado não enviado')
+                # Re-render the same tab using its actual navigation button.
+                page.locator('.tabbtn[data-tab="room"]').click()
+                assert page.locator('.chat-card #chat-text').input_value()=='Rascunho privado não enviado', 'Room re-render lost unsent message'
+                assert page.locator('.chat-card #chat-alias').input_value()=='Familiar teste'
+                page.locator('.tabbtn[data-tab="settings"]').click()
+                page.locator('.tabbtn[data-tab="room"]').click()
+                assert page.locator('.chat-card #chat-text').input_value()=='Rascunho privado não enviado', 'Switching tabs lost the unsent message'
+                stored=page.evaluate("""() => JSON.stringify({
+                    data:localStorage.getItem('cuidadora-data-v2'),
+                    room:localStorage.getItem('cuidadora-room-v1')
+                })""")
+                assert 'Rascunho privado não enviado' not in stored, 'Draft leaked into permanent storage'
+                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), 'Room chat overflows at 390px'
             assert not errors,f'JavaScript exception at {width}px: {errors}'
             print(f'{width}px: HTTP, UX, timer reload, theme, CRUD, history, search and privacy OK')
             context.close()

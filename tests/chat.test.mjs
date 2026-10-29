@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCredentials} from '../room.mjs';
-import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState,shouldPaintChat,shouldClearSentDraft} from '../chat.mjs';
+import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState,shouldPaintChat,shouldClearSentDraft,chatDraftForRoom} from '../chat.mjs';
 import {roomApi} from '../cloudflare/worker.mjs';
 
 const base='https://cuidadora.example';
@@ -122,4 +122,12 @@ test('chat button waits for a meaningful draft and preserves new text typed duri
  assert.equal(shouldClearSentDraft('Segunda mensagem','Primeira mensagem'),false);
  assert.equal(shouldClearSentDraft('Primeira mensagem e complemento','Primeira mensagem'),false);
  assert.equal(shouldClearSentDraft('','Primeira mensagem'),false);
+});
+
+test('draft memory restores only inside the same room and never into another room',()=>{
+ const sample={roomId:'room-A',text:'Próxima mensagem privada',alias:'Familiar'};
+ assert.deepEqual(chatDraftForRoom(sample,'room-A'),sample);
+ assert.equal(chatDraftForRoom(sample,'room-B'),null);
+ assert.equal(chatDraftForRoom(null,'room-A'),null);
+ assert.equal(chatDraftForRoom({roomId:'room-A',text:'',alias:''},'room-A').text,'');
 });

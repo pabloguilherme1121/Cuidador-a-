@@ -14,6 +14,8 @@ export function chatControlsState({online=true,loading=false,sending=false,canSe
   clearDisabled:online!==true||sending===true||canSend!==true
  };
 }
+/** A draft is ephemeral and is never restored to a different shared room. */
+export const chatDraftForRoom=(draft,roomId)=>draft&&draft.roomId===roomId?draft:null;
 /** Only clear the exact text that the server accepted; preserve typing during pending sends. */
 export const shouldClearSentDraft=(current,sent)=>current===sent;
 /** Limit the alias using the same Unicode code-point contract as encrypted messages. */
