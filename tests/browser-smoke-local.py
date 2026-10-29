@@ -67,6 +67,9 @@ with sync_playwright() as p:
   page.keyboard.press('Enter')
   assert toggle.evaluate('(el)=>document.activeElement===el'), f'Timer toggle lost keyboard focus at {w}px'
   assert toggle.locator('#timer-action').inner_text()=='Pausar'
+  # Pausing before the first second elapses correctly still shows the full
+  # preset; wait for a real tick so "Continuar" has a meaningful remainder.
+  page.wait_for_function("document.getElementById('timer-display')?.textContent !== '05:00'")
   page.keyboard.press('Enter')
   assert toggle.evaluate('(el)=>document.activeElement===el'), f'Timer pause lost keyboard focus at {w}px'
   assert toggle.locator('#timer-action').inner_text()=='Continuar'
