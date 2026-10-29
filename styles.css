@@ -165,3 +165,7 @@ button[data-action='room-copy']{min-height:48px}
   font-weight:650;
   line-height:1.5;
 }
+
+/* 44px touch targets for frequent actions; visible pressed feedback without layout shift. */
+.btn.small,.chip-filter{min-height:44px}
+.btn:not(:disabled):active,.iconbutton:not(:disabled):active,.tabbtn:not(:disabled):active,.chip-filter:not(:disabled):active{filter:brightness(.94)}

@@ -401,13 +401,13 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
       return;
     }
     if(e.target?.id==='onboard-form'){e.preventDefault();const data=new FormData(e.target);const times=['Café da manhã','Almoço','Lanche','Jantar'];const items=[];for(let i=0;i<4;i++){if(!data.get('meal-'+i))continue;const time=data.get('time-'+i);if(!isTime(time)){toast('Corrija os horários das refeições.');return}items.push({id:uid(),type:'meal',title:times[i],dose:'',note:'',times:[time],days:[0,1,2,3,4,5,6],archived:false,createdAt:new Date().toISOString()})}state.profile={name:String(data.get('name')||'').trim().slice(0,60),onboarded:true};state.items=items;save();render();toast('Sua rotina começou! Os horários podem ser editados.');}
-    if(e.target?.id==='timer-custom-form'){e.preventDefault();setTimerMinutes(Number(new FormData(e.target).get('minutes')));return}
-    if(e.target?.id==='profile-form'){e.preventDefault();if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');return}state.profile.name=String(new FormData(e.target).get('name')||'').trim().slice(0,60);save();render();toast('Perfil atualizado.')}
+    if(e.target?.id==='timer-custom-form'){e.preventDefault();const minutes=Number(new FormData(e.target).get('minutes'));const fromInput=document.activeElement?.id==='timer-minutes';setTimerMinutes(minutes);(fromInput?document.getElementById('timer-minutes'):document.querySelector('#timer-custom-form button[type="submit"]'))?.focus({preventScroll:true});return}
+    if(e.target?.id==='profile-form'){e.preventDefault();if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');return}state.profile.name=String(new FormData(e.target).get('name')||'').trim().slice(0,60);save();renderKeepingControlFocus('profile-name',true);toast('Perfil atualizado.')}
   });
   document.addEventListener('change',e=>{
     if(e.target.dataset?.setting){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');renderKeepingControlFocus(e.target.id);return}const k=e.target.dataset.setting;const v=e.target.type==='checkbox'?e.target.checked:(['lead','weekStart','volume'].includes(k)?Number(e.target.value):e.target.value);state.settings=normalizePreferences({...state.settings,[k]:v});save();renderKeepingControlFocus(e.target.id);return}
     if(e.target.id==='reminder-switch'){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');render();return}void activateReminders(e.target.checked);return}
-    if(e.target.id==='history-date'){const d=e.target.value;if(/^\d{4}-\d\d-\d\d$/.test(d)&&dateKey(parseDate(d))===d&&d<=dateKey(new Date())){historyDay=d;render()}return}
+    if(e.target.id==='history-date'){const d=e.target.value;if(/^\d{4}-\d\d-\d\d$/.test(d)&&dateKey(parseDate(d))===d&&d<=dateKey(new Date())){historyDay=d;renderKeepingControlFocus('history-date',true)}return}
     if(e.target.id==='import-file'){void importBackup(e.target.files?.[0]);e.target.value='';return}
   });
   document.addEventListener('input',e=>{

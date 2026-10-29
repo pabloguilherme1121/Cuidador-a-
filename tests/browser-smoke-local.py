@@ -36,6 +36,10 @@ with sync_playwright() as p:
   assert page.locator('h1').count()>=1
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-hoje.png'),full_page=True)
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
+  small_target=page.locator('.btn.small').first
+  assert small_target.evaluate('(el)=>el.getBoundingClientRect().height>=44'), f'Botão pequeno menor que 44px em {w}px'
+  status_target=page.locator('.chip-filter').first
+  assert status_target.evaluate('(el)=>el.getBoundingClientRect().height>=44'), f'Filtro de situação menor que 44px em {w}px'
   # Keyboard activation must keep focus on the replacement button after render().
   page.locator('.tabbtn[data-tab="routine"]').focus()
   page.keyboard.press('Enter')
@@ -80,6 +84,12 @@ with sync_playwright() as p:
   page.keyboard.press('Enter')
   assert reset.evaluate('(el)=>document.activeElement===el'), f'Timer reset lost keyboard focus at {w}px'
   assert page.locator('.timer-ring').evaluate("el=>el.style.getPropertyValue('--timer-progress')")=='100%'
+  custom=page.locator('#timer-minutes')
+  custom.fill('17')
+  custom.focus()
+  page.keyboard.press('Enter')
+  assert page.locator('#timer-display').inner_text()=='17:00', 'Duração personalizada não aplicada'
+  assert custom.evaluate('(el)=>document.activeElement===el'), f'Campo de duração perdeu foco após Enter em {w}px'
   page.locator('.tabbtn[data-tab="room"]').click()
   assert page.get_by_text('Sala de Pacientes').count()>0
   page.locator('.tabbtn[data-tab="settings"]').click()
@@ -108,6 +118,12 @@ with sync_playwright() as p:
   vibration.check()
   assert vibration.is_checked()
   assert vibration.evaluate('(el)=>document.activeElement===el'), f'Vibração perdeu foco após alteração em {w}px'
+  profile=page.locator('#profile-name')
+  profile.fill('Teste mobile')
+  profile.focus()
+  page.keyboard.press('Enter')
+  assert profile.input_value()=='Teste mobile'
+  assert profile.evaluate('(el)=>document.activeElement===el'), f'Salvar perfil perdeu foco após Enter em {w}px'
   page.locator('[data-action="legal"][data-page="privacidade"]').click()
   assert page.locator('#legalDialog').evaluate('(e)=>e.open')
   page.locator('[data-action="close-legal"]').click()
@@ -177,6 +193,11 @@ with sync_playwright() as p:
   assert page.locator('#history-date').input_value()==today
   assert next_day.is_disabled(), 'Próximo dia deve ficar desabilitado no dia atual'
   assert page.locator('#history-date').evaluate('(el)=>document.activeElement===el'), f'Foco não voltou à data quando Próximo dia foi desabilitado: {w}px'
+  chosen_date=page.evaluate("() => {const d=new Date();d.setDate(d.getDate()-2);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}")
+  picker=page.locator('#history-date')
+  picker.fill(chosen_date)
+  assert picker.input_value()==chosen_date
+  assert picker.evaluate('(el)=>document.activeElement===el'), f'Seletor de data perdeu foco após escolher data em {w}px'
   page.locator('.tabbtn[data-tab="settings"]').click()
   page.locator('[data-action="wipe"]').click()
   assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
