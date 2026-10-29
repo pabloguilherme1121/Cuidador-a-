@@ -68,7 +68,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   if(!alive)return;
   const ui=chatControlsState({online:navigator.onLine,loading,sending:form?.dataset.sending==='yes',canSend:roomCanEdit(room),hasDraft:validChatText(draft?.value)});
   if(refreshButton)refreshButton.disabled=ui.refreshDisabled;
-  if(sendButton)sendButton.disabled=ui.sendDisabled;
+  if(sendButton){sendButton.disabled=ui.sendDisabled;sendButton.textContent=form?.dataset.sending==='yes'?'Enviando…':'Enviar mensagem';}
   if(clearButton)clearButton.disabled=ui.clearDisabled;
   if(status)status.dataset.offline=String(!navigator.onLine);
   if(!navigator.onLine)setStatus('Sem conexão. As mensagens já carregadas continuam visíveis; o texto digitado não será enviado até a rede voltar.');
