@@ -325,6 +325,9 @@ with sync_playwright() as p:
    chat_code='\n'.join(line for line in chat_code.splitlines() if not line.startswith('import ')).replace('export ','')
    chat_page.add_script_tag(content="const roomCanEdit=()=>true;const completeCredentials=async()=>({readToken:'test-read',token:'test-write'});"+chat_code)
    chat_page.evaluate("""() => {
+     // Exercise the actual chat DOM/requests without real cryptography or credentials.
+     window.createChatMessage=async(_,{author,text})=>({id:'M'.repeat(16),author,text});
+     window.openChatMessage=async(_,data)=>data;
      const root=document.getElementById('chat-host');
      root.innerHTML=chatMarkup(true);
      window.__stopChat=mountRoomChat(root,{id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43)});
