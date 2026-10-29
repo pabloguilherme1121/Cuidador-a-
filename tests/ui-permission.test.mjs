@@ -22,6 +22,6 @@ test('configurações de sala somente leitura não oferecem exclusão nem restau
   'Explicar por que os botões estão indisponíveis');
  assert.match(app, /async function importBackup\(file\)\{if\(room&&!roomCanEdit\(room\)\)\{toast\('Sala somente leitura\.'\);return\}/,
   'Seleção prévia de arquivo também deve respeitar permissões');
- assert.match(app, /id='apply-import'[\s\S]*?room&&!roomCanEdit\(room\)/,
+ assert.match(app, /dlg\.querySelector\('#apply-import'\)\.addEventListener\('click',\(\)=>\{if\(room&&!roomCanEdit\(room\)\)/,
   'Verificação deve ser repetida na confirmação da importação');
 });
