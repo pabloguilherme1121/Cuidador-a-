@@ -81,6 +81,8 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   let state=initial();
   try {const raw=localStorage.getItem(KEY)||localStorage.getItem(LEGACY);if(raw)state=validate(JSON.parse(raw))}catch(err){console.warn('Armazenamento recuperado com padrão seguro:',err)}
   let tab='today',filter='all',statusFilter='all',routineFilter='all',historyDay=dateKey(new Date()),deferredInstall=null,toastTimer=0,storageWarned=false,searchQuery='';
+  const CONFLICT_BLOCKED_ACTIONS=new Set(['add','edit','archive','delete','confirm-delete','timeline-edit','timeline-remove','timeline-confirm-remove','timeline-full-edit','wipe-routines','wipe-routines-confirm','import','accent']);
+  const conflictMessage='Conflito de sincronização. Faça um backup e resolva o conflito na aba Sala antes de editar horários.';
   let recoveredTimer;
   try {recoveredTimer=restoreTimer(JSON.parse(localStorage.getItem(TIMERKEY)),Date.now())}catch{recoveredTimer=restoreTimer(null)}
   let timerDuration=recoveredTimer.duration,timerRemaining=recoveredTimer.remaining,timerRunning=recoveredTimer.running,timerDeadline=recoveredTimer.deadline,timerFinished=recoveredTimer.finished;
@@ -166,6 +168,11 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(pendingInvitation){root.innerHTML=`<div class="app-frame">${renderInvitation()}</div>`;return}
     if(!state.profile.onboarded){root.innerHTML=`<div class="app-frame">${renderOnboard()}</div>`;return}
     root.innerHTML=`<div class="app-frame">${header()}<main id="main-content">${tab==='routine'?renderRoutine():tab==='history'?renderHistory():tab==='settings'?renderSettings():tab==='room'?renderRoom():tab==='timer'?renderTimer():renderToday()}</main></div>${bottomNav()}`;
+    if(room&&roomConflict){
+      root.querySelectorAll('[data-action]').forEach(button=>{if(CONFLICT_BLOCKED_ACTIONS.has(button.dataset.action))button.disabled=true});
+      root.querySelectorAll('[data-setting],#reminder-switch,#import-file').forEach(control=>{control.disabled=true});
+      if(tab==='routine'||tab==='settings')root.querySelector('#main-content')?.insertAdjacentHTML('afterbegin',`<aside class="room-conflict-hint" role="alert"><strong>Conflito de sincronização.</strong> Faça backup antes de descartar alterações. Edição de rotinas e ajustes compartilhados está temporariamente bloqueada. <button type="button" class="btn small" data-action="room-open">Resolver na Sala</button></aside>`);
+    }
     if(tab==='room'&&room){
       stopChat=mountRoomChat(root.querySelector('.chat-card'),room);
       chatRoomMounted=room.id;
@@ -255,7 +262,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     box.dataset.id=item?.id||'';openDialog(box);box.querySelector('#item-title').focus();
     const sel=box.querySelector('#item-type');sel.addEventListener('change',()=>{box.querySelector('#dose-field').hidden=sel.value!=='med';box.querySelector('label[for="item-title"]').textContent=sel.value==='med'?'Nome do medicamento':'Nome da refeição';box.querySelector('label[for="item-times"]').textContent=sel.value==='med'?'Horários':'Horário'});
     box.querySelector('form').addEventListener('submit',e=>{
-      e.preventDefault();if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');box.close();return}const data=new FormData(e.target),timesRaw=String(data.get('times')).split(',').map(t=>t.trim()),times=[...new Set(timesRaw)];const days=data.getAll('days').map(Number),title=String(data.get('title')).trim(),type=String(data.get('type'));
+      e.preventDefault();if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');box.close();return}if(room&&roomConflict){toast(conflictMessage);return}const data=new FormData(e.target),timesRaw=String(data.get('times')).split(',').map(t=>t.trim()),times=[...new Set(timesRaw)];const days=data.getAll('days').map(Number),title=String(data.get('title')).trim(),type=String(data.get('type'));
       if(!title||times.length<1||times.length>24||times.some(t=>!isTime(t))){toast('Preencha um nome e horários válidos (HH:mm).');return}
       if(type==='meal'&&times.length!==1){toast('Para cada refeição, informe um único horário.');return}
       if(days.length===0){toast('Selecione pelo menos um dia.');return}
@@ -287,9 +294,9 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     parts.push('END:VCALENDAR');if(!count){toast('Cadastre um horário antes de exportar.');return}exportFile('cuidadora-calendario.ics',parts.map(icsFold).join('\r\n')+'\r\n','text/calendar;charset=utf-8');toast('Calendário exportado. Ative os avisos no app de calendário.');
   }
   function downloadBackup(){exportFile('cuidadora-backup-'+dateKey(new Date())+'.json',JSON.stringify(state,null,2),'application/json;charset=utf-8');toast('Backup salvo.')}
-  async function importBackup(file){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');return}if(!file)return;try{if(file.size>2e6)throw new Error('O arquivo é grande demais (máximo 2 MB).');const parsed=validate(JSON.parse(await file.text()));const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Substituir seus dados?</h2><p class="subtle">Importar este backup substituirá os cadastros e o histórico atuais deste navegador. Exporte um backup antes, se quiser guardá-los.</p><div class="form-actions"><button class="btn ghost" type="button" data-action="cancel-delete">Cancelar</button><button class="btn primary" type="button" id="apply-import">Importar backup</button></div>`;openDialog(dlg);dlg.querySelector('#apply-import').addEventListener('click',()=>{if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');dlg.close();return}state=parsed;save();dlg.close();tab='today';render();toast('Backup importado com sucesso.')},{once:true})}catch(err){toast('Não foi possível importar: '+err.message)}}
+  async function importBackup(file){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');return}if(room&&roomConflict){toast(conflictMessage);return}if(!file)return;try{if(file.size>2e6)throw new Error('O arquivo é grande demais (máximo 2 MB).');const parsed=validate(JSON.parse(await file.text()));const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Substituir seus dados?</h2><p class="subtle">Importar este backup substituirá os cadastros e o histórico atuais deste navegador. Exporte um backup antes, se quiser guardá-los.</p><div class="form-actions"><button class="btn ghost" type="button" data-action="cancel-delete">Cancelar</button><button class="btn primary" type="button" id="apply-import">Importar backup</button></div>`;openDialog(dlg);dlg.querySelector('#apply-import').addEventListener('click',()=>{if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');dlg.close();return}if(room&&roomConflict){toast(conflictMessage);dlg.close();return}state=parsed;save();dlg.close();tab='today';render();toast('Backup importado com sucesso.')},{once:true})}catch(err){toast('Não foi possível importar: '+err.message)}}
   function renderKeepingControlFocus(id,wasFocused=document.activeElement?.id===id){render();if(wasFocused)document.getElementById(id)?.focus({preventScroll:true})}
-  async function activateReminders(enabled){const wasFocused=document.activeElement?.id==='reminder-switch';state.settings.reminders=enabled;save();if(enabled&&'Notification' in window&&Notification.permission==='default'){try{await Notification.requestPermission()}catch{}}renderKeepingControlFocus('reminder-switch',wasFocused);toast(enabled?'Avisos ativados enquanto o aplicativo estiver aberto.':'Avisos desativados.')}
+  async function activateReminders(enabled){if(room&&roomConflict){toast(conflictMessage);render();return}const wasFocused=document.activeElement?.id==='reminder-switch';state.settings.reminders=enabled;save();if(enabled&&'Notification' in window&&Notification.permission==='default'){try{await Notification.requestPermission()}catch{}}renderKeepingControlFocus('reminder-switch',wasFocused);toast(enabled?'Avisos ativados enquanto o aplicativo estiver aberto.':'Avisos desativados.')}
   async function showSystemNotice(title,body,tag){try{if(!('serviceWorker' in navigator))return;const reg=await navigator.serviceWorker.ready;await reg.showNotification(title,{body,icon:'./assets/icon-192.png',badge:'./assets/icon-192.png',tag,renotify:false});}catch(err){console.warn('Notificação indisponível:',err)}}
   function beep(){
     const sound=state.settings.soundPreset||'soft',volume=Number(state.settings.volume||30)/100;
@@ -330,6 +337,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   function setTimerMinutes(min){if(!Number.isInteger(min)||min<1||min>180){toast('Escolha entre 1 e 180 minutos.');return}timerRunning=false;timerDeadline=null;timerFinished=false;timerDuration=min*60;timerRemaining=timerDuration;saveTimer();render()}
   document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action,id=el.dataset.id;
     if(room&&!roomCanEdit(room)&&new Set(['room-rotate-confirm','add','edit','archive','delete','confirm-delete','timeline-edit','timeline-remove','timeline-confirm-remove','timeline-full-edit','wipe-routines','wipe-routines-confirm','accent','room-push','room-delete','room-delete-confirm','room-rotate','import']).has(action)){toast('Convite somente leitura: não é permitido alterar as rotinas desta sala.');return}
+    if(room&&roomConflict&&CONFLICT_BLOCKED_ACTIONS.has(action)){toast(conflictMessage);return}
     if(action==='room-open'){tab='room';render();return}
     if(action==='room-sync'){if(!room||roomBusy)return;if(roomDirty){if(roomConflict){toast('Resolva o conflito na aba Sala.');tab='room';render()}else await pushRoom()}else await pullRoom();return}
     if(action==='room-create'){await makeRoom();return}
@@ -405,8 +413,8 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(e.target?.id==='profile-form'){e.preventDefault();if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');return}state.profile.name=String(new FormData(e.target).get('name')||'').trim().slice(0,60);save();renderKeepingControlFocus('profile-name',true);toast('Perfil atualizado.')}
   });
   document.addEventListener('change',e=>{
-    if(e.target.dataset?.setting){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');renderKeepingControlFocus(e.target.id);return}const k=e.target.dataset.setting;const v=e.target.type==='checkbox'?e.target.checked:(['lead','weekStart','volume'].includes(k)?Number(e.target.value):e.target.value);state.settings=normalizePreferences({...state.settings,[k]:v});save();renderKeepingControlFocus(e.target.id);return}
-    if(e.target.id==='reminder-switch'){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');render();return}void activateReminders(e.target.checked);return}
+    if(e.target.dataset?.setting){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');renderKeepingControlFocus(e.target.id);return}if(room&&roomConflict){toast(conflictMessage);renderKeepingControlFocus(e.target.id);return}const k=e.target.dataset.setting;const v=e.target.type==='checkbox'?e.target.checked:(['lead','weekStart','volume'].includes(k)?Number(e.target.value):e.target.value);state.settings=normalizePreferences({...state.settings,[k]:v});save();renderKeepingControlFocus(e.target.id);return}
+    if(e.target.id==='reminder-switch'){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');render();return}if(room&&roomConflict){toast(conflictMessage);render();return}void activateReminders(e.target.checked);return}
     if(e.target.id==='history-date'){const d=e.target.value;if(/^\d{4}-\d\d-\d\d$/.test(d)&&dateKey(parseDate(d))===d&&d<=dateKey(new Date())){historyDay=d;renderKeepingControlFocus('history-date',true)}return}
     if(e.target.id==='import-file'){void importBackup(e.target.files?.[0]);e.target.value='';return}
   });
