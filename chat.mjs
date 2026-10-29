@@ -9,7 +9,8 @@ export const validChatText=v=>typeof v==='string'&&v.trim().length>=1&&v.trim().
 export function chatControlsState({online=true,loading=false,sending=false,canSend=false}={}){
  return {
   refreshDisabled:online!==true||loading===true,
-  sendDisabled:online!==true||sending===true||canSend!==true
+  sendDisabled:online!==true||sending===true||canSend!==true,
+  clearDisabled:online!==true||sending===true||canSend!==true
  };
 }
 /** Limit the alias using the same Unicode code-point contract as encrypted messages. */
@@ -53,7 +54,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  if(!element||!room)return ()=>{};
  let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
- const refreshButton=element.querySelector('#chat-refresh'),sendButton=form?.querySelector('#chat-send');
+ const refreshButton=element.querySelector('#chat-refresh'),sendButton=form?.querySelector('#chat-send'),clearButton=element.querySelector('#chat-clear');
  const alias=element.querySelector('#chat-alias');
  try{if(alias)alias.value=limitChatAlias(localStorage.getItem('cuidadora-chat-alias')||'')}catch{}
  const clampAlias=event=>{if(event?.isComposing)return;if(alias)alias.value=limitChatAlias(alias.value)};
@@ -65,6 +66,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   const ui=chatControlsState({online:navigator.onLine,loading,sending:form?.dataset.sending==='yes',canSend:roomCanEdit(room)});
   if(refreshButton)refreshButton.disabled=ui.refreshDisabled;
   if(sendButton)sendButton.disabled=ui.sendDisabled;
+  if(clearButton)clearButton.disabled=ui.clearDisabled;
   if(!navigator.onLine)setStatus('Sem conexão. As mensagens já carregadas continuam visíveis; o texto digitado não será enviado até a rede voltar.');
  };
  const paint=()=>{
@@ -121,10 +123,10 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
   }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;syncControls()}
  };
  const clear=async()=>{
+  if(!navigator.onLine){syncControls();return;}
   if(!roomCanEdit(room)||!confirm('Apagar todas as mensagens da sala em todos os aparelhos? Esta ação não pode ser desfeita.'))return;
   try{const cred=await completeCredentials(room);const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'DELETE',headers:{'X-Room-Token':cred.token},cache:'no-store'});if(!res.ok)throw Error('Falha ao apagar conversa');messages=[];cursor='';paint();setStatus('Conversa apagada para todos.')}catch(e){setStatus(e.message)}
  };
- const clearButton=element.querySelector('#chat-clear');
  form?.addEventListener('submit',submit);
  clearButton?.addEventListener('click',clear);
  const manualRefresh=()=>{idleCycles=0;void refresh(true)};
