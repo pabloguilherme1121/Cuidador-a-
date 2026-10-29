@@ -18,6 +18,10 @@ export async function createCredentials(){
  return {id,key,editorSecret,role:'editor',...await writerAuth(editorSecret),...await readerAuth(key)};
 }
 export const roomCanEdit=room=>Boolean(room&&(room.editorSecret||room.legacy));
+/** Shared rule for the send button and the write handler: avoid no-op clicks. */
+export function roomCanSend(room,{version=0,dirty=false,busy=false,conflict=false}={}){
+ return roomCanEdit(room)&&Number.isSafeInteger(version)&&version>0&&dirty===true&&busy===false&&conflict===false;
+}
 export async function completeCredentials(raw){
  if(!raw||!roomPattern.test(raw.id)||!keyPattern.test(raw.key))throw new Error('Link da sala inválido');
  if(raw.editorSecret&&!keyPattern.test(raw.editorSecret))throw new Error('Convite de edição inválido');

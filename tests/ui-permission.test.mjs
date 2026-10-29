@@ -27,3 +27,10 @@ test('configurações de sala somente leitura não oferecem exclusão nem restau
  assert.match(app, /dlg\.querySelector\('#apply-import'\)\.addEventListener\('click',\(\)=>\{if\(room&&!roomCanEdit\(room\)\)/,
   'Verificação deve ser repetida na confirmação da importação');
 });
+
+test('botão Enviar mostra estado de pendência e compartilha regra com o handler',()=>{
+ assert.match(app,/data-action="room-push"\s+\$\{roomCanSend\(room,\{version:roomVersion,dirty:roomDirty,busy:roomBusy,conflict:roomConflict\}\)\?'':'disabled'\}/);
+ assert.match(app,/if\(!roomCanSend\(room,\{version:roomVersion,dirty:roomDirty,busy:roomBusy,conflict:roomConflict\}\)\)return;roomBusy=true;/);
+ assert.match(app,/Nenhuma alteração local pendente para enviar\./);
+ assert.match(app,/Há um conflito\. Resolva antes de enviar\./);
+});
