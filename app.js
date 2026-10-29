@@ -356,7 +356,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='timer-toggle'){updateTimer();if(timerRunning){timerRunning=false;timerDeadline=null}else{if(timerRemaining===0)timerRemaining=timerDuration;timerRunning=true;timerDeadline=Date.now()+timerRemaining*1000;timerFinished=false}saveTimer();render();document.querySelector('[data-action="timer-toggle"]')?.focus({preventScroll:true});return}
     if(action==='timer-reset'){timerRunning=false;timerDeadline=null;timerRemaining=timerDuration;timerFinished=false;saveTimer();render();document.querySelector('[data-action="timer-reset"]')?.focus({preventScroll:true});return}
     if(action==='timer-preset'){const minutes=Number(el.dataset.minutes);setTimerMinutes(minutes);document.querySelector(`.timer-presets [data-minutes="${minutes}"]`)?.focus({preventScroll:true});return}
-    if(action==='accent'){state.settings.accent=el.dataset.accent;save();render();return}
+    if(action==='accent'){state.settings.accent=el.dataset.accent;save();render();document.querySelector('[data-action="accent"][aria-pressed="true"]')?.focus({preventScroll:true});return}
     if(action==='wipe-routines'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Apagar todas as rotinas salvas?</h2><p>As refeições e medicamentos serão removidos deste aparelho. O histórico de horários concluídos será preservado. Se você estiver em uma sala, a exclusão será sincronizada.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="wipe-routines-confirm">Apagar rotinas</button></div>`;openDialog(dlg);return}
     if(action==='wipe-routines-confirm'){state.items=[];save();document.getElementById('confirmDialog').close();render();toast('Todas as rotinas foram apagadas.');return}
     if(action==='wipe'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Apagar todos os dados?</h2><p>Essa ação apaga definitivamente horários, medicamentos, histórico e preferências neste navegador. Antes, exporte um backup se quiser. Isso também desconecta este aparelho de qualquer Sala, mas não exclui a sala na nuvem.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="wipe-confirm">Apagar permanentemente</button></div>`;openDialog(dlg);return}
@@ -383,8 +383,8 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='confirm-delete'){setState(s=>({...s,items:s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();toast('Horário removido.');return}
     if(action==='cancel-delete'){document.getElementById('confirmDialog').close();return}
     if(action==='close-edit'){document.getElementById('editDialog').close();return}
-    if(action==='toggle'){mark(el.dataset.key);return}
-    if(action==='day'){const d=parseDate(historyDay);d.setDate(d.getDate()+Number(el.dataset.delta));if(dateKey(d)<=dateKey(new Date())){historyDay=dateKey(d);render()}return}
+    if(action==='toggle'){const key=el.dataset.key;mark(key);[...document.querySelectorAll('[data-action="toggle"]')].find(button=>button.dataset.key===key)?.focus({preventScroll:true});return}
+    if(action==='day'){const d=parseDate(historyDay);d.setDate(d.getDate()+Number(el.dataset.delta));if(dateKey(d)<=dateKey(new Date())){historyDay=dateKey(d);render();const next=document.querySelector(`[data-action="day"][data-delta="${el.dataset.delta}"]`);if(next&&!next.disabled)next.focus({preventScroll:true});else document.querySelector('#history-date')?.focus({preventScroll:true})}return}
     if(action==='backup'){downloadBackup();return}
     if(action==='import'){document.getElementById('import-file').click();return}
     if(action==='ics'){makeICS();return}
