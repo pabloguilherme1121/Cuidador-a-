@@ -328,12 +328,12 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='room-leave-confirm'){document.getElementById('confirmDialog').close();leaveRoom();return}
     if(action==='room-delete'){const dlg=document.getElementById('confirmDialog');dlg.innerHTML=`<h2 id="confirmTitle">Excluir sala de todos os aparelhos?</h2><p>O link deixará de funcionar e os dados criptografados serão excluídos da sala. Outros aparelhos manterão suas cópias locais.</p><div class="form-actions"><button class="btn" data-action="cancel-delete">Cancelar</button><button class="btn danger" data-action="room-delete-confirm">Excluir sala</button></div>`;openDialog(dlg);return}
     if(action==='room-delete-confirm'){document.getElementById('confirmDialog').close();await deleteRoom();return}
-    if(action==='tab'){e.preventDefault();tab=el.dataset.tab;render();window.scrollTo({top:0,behavior:'instant'});return}
+    if(action==='tab'){e.preventDefault();tab=el.dataset.tab;render();document.querySelector('.tabbar .tabbtn[aria-current="page"]')?.focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});return}
     if(action==='skip'){state.profile.onboarded=true;save();render();return}
-    if(action==='filter'){filter=el.dataset.filter;render();return}
-    if(action==='routine-filter'){routineFilter=el.dataset.filter;render();return}
+    if(action==='filter'){filter=el.dataset.filter;render();document.querySelector('.filterRow [data-action="filter"][aria-pressed="true"]')?.focus({preventScroll:true});return}
+    if(action==='routine-filter'){routineFilter=el.dataset.filter;render();document.querySelector('.filterRow [data-action="routine-filter"][aria-pressed="true"]')?.focus({preventScroll:true});return}
     if(action==='clear-routine-search'){const input=document.getElementById('routine-search');if(input){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}
-    if(action==='status-filter'){statusFilter=el.dataset.filter;render();return}
+    if(action==='status-filter'){statusFilter=el.dataset.filter;render();document.querySelector('.secondaryFilters [data-action="status-filter"][aria-pressed="true"]')?.focus({preventScroll:true});return}
     if(action==='timer-toggle'){updateTimer();if(timerRunning){timerRunning=false;timerDeadline=null}else{if(timerRemaining===0)timerRemaining=timerDuration;timerRunning=true;timerDeadline=Date.now()+timerRemaining*1000;timerFinished=false}saveTimer();render();return}
     if(action==='timer-reset'){timerRunning=false;timerDeadline=null;timerRemaining=timerDuration;timerFinished=false;saveTimer();render();return}
     if(action==='timer-preset'){setTimerMinutes(Number(el.dataset.minutes));return}
