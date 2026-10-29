@@ -16,6 +16,8 @@ test('sala de visualização não permite cadastrar nem pela ação do destaque 
 test('configurações de sala somente leitura não oferecem exclusão nem restauração de rotinas',()=>{
  assert.match(app, /data-action="import"\s+\$\{room&&!roomCanEdit\(room\)\?'disabled':''\}/,
   'Restaurar backup deve respeitar acesso somente leitura');
+ assert.match(app, /id="import-file"[\s\S]*?aria-label="Escolher backup JSON"\s+\$\{room&&!roomCanEdit\(room\)\?'disabled':''\}/,
+  'Seletor oculto não deve permanecer acessível por teclado quando restauração está bloqueada');
  assert.match(app, /data-action="wipe-routines"\s+\$\{room&&!roomCanEdit\(room\)\?'disabled':''\}/,
   'Apagar rotinas não deve oferecer uma ação bloqueada');
  assert.match(app, /Somente visualização: para trocar ou apagar suas rotinas, desconecte esta sala primeiro\./,
