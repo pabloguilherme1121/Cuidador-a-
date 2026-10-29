@@ -151,3 +151,6 @@ button[data-action='room-copy']{min-height:48px}
 .search-field>.routine-clear{min-height:44px;white-space:nowrap;padding-inline:12px}
 .search-field>.routine-clear[hidden]{display:none!important}
 @media(max-width:340px){.search-field{column-gap:5px}.search-field>.routine-clear{padding-inline:8px}}
+
+/* Compartilhamento em modo leitura: explicação visível, legível em 320px. */
+.room-readonly-hint{margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--tint);color:var(--fg);font-size:.85rem;line-height:1.55;overflow-wrap:anywhere}
