@@ -5,6 +5,15 @@ const to64=bytes=>btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace
 const from64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));
 const ID=/^[\w-]{16}$/;
 export const validChatText=v=>typeof v==='string'&&v.trim().length>=1&&v.trim().length<=500;
+/** Keep the chat actions consistent with network and request state. */
+export const shouldPaintChat=({painted=false,full=false,changed=false}={})=>!painted||full||changed;
+export function chatControlsState({online=true,loading=false,sending=false,canSend=false}={}){
+ return {
+  refreshDisabled:online!==true||loading===true,
+  sendDisabled:online!==true||sending===true||canSend!==true,
+  clearDisabled:online!==true||sending===true||canSend!==true
+ };
+}
 /** Limit the alias using the same Unicode code-point contract as encrypted messages. */
 export const limitChatAlias=value=>Array.from(String(value??'')).slice(0,28).join('');
 export const validChatEnvelope=v=>Boolean(v&&ID.test(v.id||'')&&/^[\w-]{16}$/.test(v.iv||'')&&/^[\w-]{22,2500}$/.test(v.ciphertext||''));
@@ -44,14 +53,24 @@ export function chatMarkup(canSend){
 /** Mount only in Sala; stop polling when the tab is removed or browser is hidden. */
 export function mountRoomChat(element,room,{onError=()=>{}}={}){
  if(!element||!room)return ()=>{};
- let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false;
+ let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false,painted=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
+ const refreshButton=element.querySelector('#chat-refresh'),sendButton=form?.querySelector('#chat-send'),clearButton=element.querySelector('#chat-clear');
  const alias=element.querySelector('#chat-alias');
  try{if(alias)alias.value=limitChatAlias(localStorage.getItem('cuidadora-chat-alias')||'')}catch{}
  const clampAlias=event=>{if(event?.isComposing)return;if(alias)alias.value=limitChatAlias(alias.value)};
  alias?.addEventListener('input',clampAlias);
  alias?.addEventListener('compositionend',clampAlias);
  const setStatus=text=>{if(alive&&status?.isConnected)status.textContent=text};
+ const syncControls=()=>{
+  if(!alive)return;
+  const ui=chatControlsState({online:navigator.onLine,loading,sending:form?.dataset.sending==='yes',canSend:roomCanEdit(room)});
+  if(refreshButton)refreshButton.disabled=ui.refreshDisabled;
+  if(sendButton)sendButton.disabled=ui.sendDisabled;
+  if(clearButton)clearButton.disabled=ui.clearDisabled;
+  if(status)status.dataset.offline=String(!navigator.onLine);
+  if(!navigator.onLine)setStatus('Sem conexão. As mensagens já carregadas continuam visíveis; o texto digitado não será enviado até a rede voltar.');
+ };
  const paint=()=>{
   if(!alive||!box?.isConnected)return;
   const nearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<90;
@@ -71,7 +90,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  const refresh=async(force=false)=>{
   if(!alive||loading||!navigator.onLine||document.visibilityState!=='visible')return;
   if(!box?.isConnected)return;
-  loading=true;
+  loading=true;syncControls();
   try{
    const cred=await completeCredentials(room);
    const full=force||++polls%6===0;
@@ -86,14 +105,16 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const ids=new Set(messages.map(x=>x.id));const hadNew=incoming.some(m=>!ids.has(m.id));for(const m of incoming)if(!ids.has(m.id)){messages.push(m);ids.add(m.id)}
    messages=messages.slice(-100);cursor=data.cursor||cursor;
    idleCycles=hadNew?0:Math.min(10,idleCycles+1);failures=0;rateLimited=false;
-   paint();setStatus(hadNew?'Novas mensagens recebidas.':'Conversa atualizada.');
-  }catch(e){failures=Math.min(5,failures+1);setStatus(e.message||'Chat temporariamente indisponível.');onError(e)}finally{loading=false;schedule()}
+   if(shouldPaintChat({painted,full,changed:hadNew})){paint();painted=true}
+   setStatus(hadNew?'Novas mensagens recebidas.':'Conversa atualizada.');
+  }catch(e){failures=Math.min(5,failures+1);setStatus(e.message||'Chat temporariamente indisponível.');onError(e)}finally{loading=false;schedule();syncControls()}
  };
  const submit=async e=>{
   e.preventDefault();if(!roomCanEdit(room)||!form||form.dataset.sending==='yes')return;
+  if(!navigator.onLine){syncControls();return;}
   const field=form.querySelector('#chat-text');const message=field.value;
   if(!validChatText(message)){setStatus('Escreva uma mensagem de até 500 caracteres.');return}
-  form.dataset.sending='yes';const sendButton=form.querySelector('button[type=submit]');sendButton.disabled=true;
+  form.dataset.sending='yes';syncControls();
   try{
    const author=limitChatAlias(alias?.value?.trim()||'Cuidador');
    const encrypted=await createChatMessage(room,{author,text:message});
@@ -102,21 +123,21 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
    field.value='';try{localStorage.setItem('cuidadora-chat-alias',limitChatAlias(author))}catch{}
    await refresh();setStatus('Mensagem enviada.');
-  }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;sendButton.disabled=false}
+  }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;syncControls()}
  };
  const clear=async()=>{
+  if(!navigator.onLine){syncControls();return;}
   if(!roomCanEdit(room)||!confirm('Apagar todas as mensagens da sala em todos os aparelhos? Esta ação não pode ser desfeita.'))return;
   try{const cred=await completeCredentials(room);const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'DELETE',headers:{'X-Room-Token':cred.token},cache:'no-store'});if(!res.ok)throw Error('Falha ao apagar conversa');messages=[];cursor='';paint();setStatus('Conversa apagada para todos.')}catch(e){setStatus(e.message)}
  };
- const clearButton=element.querySelector('#chat-clear');
  form?.addEventListener('submit',submit);
  clearButton?.addEventListener('click',clear);
- const refreshButton=element.querySelector('#chat-refresh');
  const manualRefresh=()=>{idleCycles=0;void refresh(true)};
  const visibility=()=>{if(document.visibilityState==='visible')void refresh();else clearTimeout(timer)};
- const onOnline=()=>void refresh();
+ const onOnline=()=>{syncControls();void refresh()};
+ const onOffline=()=>syncControls();
  refreshButton?.addEventListener('click',manualRefresh);
- document.addEventListener('visibilitychange',visibility);window.addEventListener('online',onOnline);
- void refresh();
- return ()=>{alive=false;clearTimeout(timer);alias?.removeEventListener('input',clampAlias);alias?.removeEventListener('compositionend',clampAlias);window.removeEventListener('online',onOnline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
+ document.addEventListener('visibilitychange',visibility);window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);
+ syncControls();void refresh();
+ return ()=>{alive=false;clearTimeout(timer);alias?.removeEventListener('input',clampAlias);alias?.removeEventListener('compositionend',clampAlias);window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);refreshButton?.removeEventListener('click',manualRefresh);document.removeEventListener('visibilitychange',visibility);form?.removeEventListener('submit',submit);clearButton?.removeEventListener('click',clear)};
 }

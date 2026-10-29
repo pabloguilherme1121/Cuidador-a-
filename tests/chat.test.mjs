@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCredentials} from '../room.mjs';
-import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias} from '../chat.mjs';
+import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState,shouldPaintChat} from '../chat.mjs';
 import {roomApi} from '../cloudflare/worker.mjs';
 
 const base='https://cuidadora.example';
@@ -91,4 +91,25 @@ test('chat alias form respects 28 Unicode code points, including emoji input',()
  assert.equal(limitChatAlias('💊'.repeat(29)),'💊'.repeat(28));
  assert.equal(limitChatAlias('Ana Maria'),'Ana Maria');
  assert.equal(limitChatAlias('X'.repeat(57)),'X'.repeat(28));
+});
+
+test('chat blocks requests offline without losing the editable draft',()=>{
+ const active={online:true,loading:false,sending:false,canSend:true};
+ assert.deepEqual(chatControlsState(active),{refreshDisabled:false,sendDisabled:false,clearDisabled:false});
+ assert.deepEqual(chatControlsState({...active,online:false}),{refreshDisabled:true,sendDisabled:true,clearDisabled:true});
+ assert.deepEqual(chatControlsState({...active,loading:true}),{refreshDisabled:true,sendDisabled:false,clearDisabled:false});
+ assert.deepEqual(chatControlsState({...active,sending:true}),{refreshDisabled:false,sendDisabled:true,clearDisabled:true});
+ assert.deepEqual(chatControlsState({...active,canSend:false}),{refreshDisabled:false,sendDisabled:true,clearDisabled:true});
+ const markup=chatMarkup(true);
+ assert.match(markup, /id="chat-text"[^>]*>/);
+ assert.match(markup, /id="chat-send"/);
+ assert.match(markup, /id="chat-clear"/);
+ assert.match(markup, /id="chat-refresh"/);
+});
+
+test('chat preserves existing DOM on unchanged polling, but updates first and full reads',()=>{
+ assert.equal(shouldPaintChat({painted:false,full:false,changed:false}),true);
+ assert.equal(shouldPaintChat({painted:true,full:false,changed:false}),false);
+ assert.equal(shouldPaintChat({painted:true,full:false,changed:true}),true);
+ assert.equal(shouldPaintChat({painted:true,full:true,changed:false}),true);
 });

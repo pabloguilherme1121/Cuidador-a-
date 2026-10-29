@@ -154,3 +154,14 @@ button[data-action='room-copy']{min-height:48px}
 
 /* Convite de visualização: explique ações bloqueadas sem truncar no celular. */
 .room-readonly-hint{margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--tint);color:var(--fg);font-size:.85rem;line-height:1.55;overflow-wrap:anywhere}
+
+/* Chat: offline feedback stays readable and does not obscure the conversation. */
+.chat-sync #chat-status[data-offline="true"]{
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--tint);
+  color:var(--fg);
+  font-weight:650;
+  line-height:1.5;
+}
