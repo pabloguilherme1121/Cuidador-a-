@@ -36,6 +36,16 @@ with sync_playwright() as p:
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
   page.get_by_role('button',name='Timer',exact=True).click()
   assert page.locator('#timer-display').inner_text()=='15:00'
+  if w==390:
+   # Timer idle should not replace identical text every 400ms (layout/paint and accessibility churn).
+   page.evaluate("""() => {
+     window.__timerMutations = 0;
+     window.__timerObserver = new MutationObserver(list => window.__timerMutations += list.length);
+     window.__timerObserver.observe(document.getElementById('timer-display'), {childList:true,characterData:true,subtree:true});
+   }""")
+   page.wait_for_timeout(1100)
+   count=page.evaluate("() => { window.__timerObserver.disconnect(); return window.__timerMutations; }")
+   assert count==0, f'Timer ocioso alterou texto idêntico {count} vezes'
   page.locator('[data-action="timer-preset"][data-minutes="5"]').click()
   assert page.locator('#timer-display').inner_text()=='05:00'
   page.locator('[data-action="timer-toggle"]').click()
