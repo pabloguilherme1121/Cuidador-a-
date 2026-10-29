@@ -19,8 +19,12 @@ export async function createCredentials(){
 }
 export const roomCanEdit=room=>Boolean(room&&(room.editorSecret||room.legacy));
 /** Shared rule for the send button and the write handler: avoid no-op clicks. */
-export function roomCanSend(room,{version=0,dirty=false,busy=false,conflict=false}={}){
- return roomCanEdit(room)&&Number.isSafeInteger(version)&&version>0&&dirty===true&&busy===false&&conflict===false;
+export function roomCanSend(room,{version=0,dirty=false,busy=false,conflict=false,online=true}={}){
+ return roomCanEdit(room)&&Number.isSafeInteger(version)&&version>0&&dirty===true&&busy===false&&conflict===false&&online===true;
+}
+/** A manual receive cannot run while offline or already handling a request. */
+export function roomCanReceive({connected=false,online=true,busy=false}={}){
+ return connected===true&&online===true&&busy===false;
 }
 export async function completeCredentials(raw){
  if(!raw||!roomPattern.test(raw.id)||!keyPattern.test(raw.key))throw new Error('Link da sala inválido');
