@@ -29,6 +29,19 @@ with TemporaryDirectory() as temp:
             assert page.locator('h1').count(), 'No heading at first load'
             page.locator('#onboard-form button[type=submit]').click()
             assert page.locator('.tabbtn').count()==6
+            # Global PG Bot shortcut must be reachable from any screen without a floating overlay.
+            helper=page.get_by_role('button',name='Abrir ajuda PG Bot')
+            assert helper.is_visible(), f'PG Bot shortcut missing at {width}px'
+            assert helper.evaluate('(e)=>e.getBoundingClientRect().height>=44'),f'PG Bot touch target too small at {width}px'
+            helper.focus()
+            page.keyboard.press('Enter')
+            assert page.locator('h1').inner_text()=='Personalização'
+            assert page.locator('#pg-help-title').is_visible(), f'PG Bot guide not visible at {width}px'
+            assert page.locator('#pg-help-title').evaluate('(e)=>document.activeElement===e'),f'PG Bot heading lost keyboard focus at {width}px'
+            assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Help shortcut overflow at {width}px'
+            page.locator('.pg-help-shortcuts [data-tab="timer"]').click()
+            assert page.locator('h1').inner_text()=='Timer de cuidados'
+            page.locator('.tabbtn[data-tab="today"]').click()
             assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {width}px'
             page.locator('.tabbtn[data-tab="timer"]').click()
             assert page.locator('#timer-display').inner_text()=='15:00'
