@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit} from '../room.mjs';
+import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,roomCanSend} from '../room.mjs';
 
 test('new room creates distinct viewing and editing invitations',async()=>{
  const owner=await createCredentials();
@@ -23,4 +23,17 @@ test('link alone without editor secret cannot derive write permission',async()=>
  assert.equal(viewer.role,'viewer');
  assert.equal(viewer.token,null);
  assert.equal(parseRoomFragment('#sala=invalid'),null);
+});
+
+test('enviar alterações só é possível para editor com versão e mudanças sem conflito',()=>{
+ const editor={id:'a'.repeat(22),key:'b'.repeat(43),editorSecret:'c'.repeat(43)};
+ const viewer={id:editor.id,key:editor.key};
+ const ready={version:2,dirty:true,busy:false,conflict:false};
+ assert.equal(roomCanSend(editor,ready),true);
+ assert.equal(roomCanSend(viewer,ready),false);
+ assert.equal(roomCanSend(editor,{...ready,version:0}),false);
+ assert.equal(roomCanSend(editor,{...ready,dirty:false}),false);
+ assert.equal(roomCanSend(editor,{...ready,busy:true}),false);
+ assert.equal(roomCanSend(editor,{...ready,conflict:true}),false);
+ assert.equal(roomCanSend(null,ready),false);
 });
