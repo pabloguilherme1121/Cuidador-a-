@@ -11,7 +11,10 @@ self.addEventListener('activate',event=>event.waitUntil(Promise.all([
 async function networkFirst(req){
  try{
   const res=await fetch(req);
-  if(res.ok){const copy=res.clone();const cache=await caches.open(CACHE);await cache.put(req,copy)}
+  if(res.ok){
+   // A quota error must not turn a healthy network response into stale content.
+   try{const cache=await caches.open(CACHE);await cache.put(req,res.clone())}catch{}
+  }
   return res;
  }catch{
   const hit=await caches.match(req);
