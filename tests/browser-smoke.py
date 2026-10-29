@@ -198,6 +198,21 @@ with TemporaryDirectory() as temp:
                 })""")
                 assert 'Rascunho privado não enviado' not in stored, 'Draft leaked into permanent storage'
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'), 'Room chat overflows at 390px'
+                # A conflict may be inspected offline: "Resolver" only opens Sala.
+                page.evaluate("""() => {
+                    const data=JSON.parse(localStorage.getItem('cuidadora-room-v1'));
+                    localStorage.setItem('cuidadora-room-v1',JSON.stringify({
+                        ...data,version:1,dirty:true,conflict:true
+                    }));
+                }""")
+                page.reload(wait_until='load')
+                context.set_offline(True)
+                page.locator('.tabbtn[data-tab="today"]').click()
+                resolve=page.locator('.timeline-sync [data-action="room-open"]')
+                assert resolve.is_enabled(), 'Conflito offline não deve bloquear navegação para Sala'
+                resolve.click()
+                assert page.locator('.tabbtn[data-tab="room"]').get_attribute('aria-current')=='page'
+                context.set_offline(False)
             assert not errors,f'JavaScript exception at {width}px: {errors}'
             print(f'{width}px: HTTP, UX, timer reload, theme, CRUD, history, search and privacy OK')
             context.close()
