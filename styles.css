@@ -193,3 +193,12 @@ button[data-action='room-copy']{min-height:48px}
 .pg-help summary:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .pg-help details p{margin:0 0 14px;line-height:1.6;color:var(--fg)}
 @media(max-width:390px){.pg-help-shortcuts .btn{flex:1 1 100%}}
+
+/* PG Bot sempre encontrável sem botão flutuante sobre controles do PWA. */
+.topbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0}
+.header-help{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;min-width:79px;padding:6px 9px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--fg);font-size:.81rem;font-weight:750;white-space:nowrap}
+.header-help img{width:26px;height:30px;object-fit:contain;flex:none}
+.header-help:active{filter:brightness(.94)}
+#pg-help-title{scroll-margin-top:22px}
+#pg-help-title:focus{outline:3px solid #eb994d;outline-offset:4px;border-radius:3px}
+@media(max-width:420px){.topbar .date-chip{display:none}.topbar{gap:8px}}
