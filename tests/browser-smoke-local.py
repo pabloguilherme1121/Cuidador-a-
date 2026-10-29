@@ -129,6 +129,7 @@ with sync_playwright() as p:
    page.reload(wait_until='load')
    page.locator('.tabbtn[data-tab="settings"]').click()
    assert page.locator('[data-action="import"]').is_disabled()
+   assert page.locator('#import-file').is_disabled()
    assert page.locator('[data-action="wipe-routines"]').is_disabled()
    assert page.locator('[data-action="wipe"]').is_enabled()
    assert page.get_by_text('Somente visualização: para trocar ou apagar suas rotinas, desconecte esta sala primeiro.').is_visible()
