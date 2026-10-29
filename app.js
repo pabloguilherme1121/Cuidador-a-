@@ -287,10 +287,16 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     box.dataset.id=item?.id||'';openDialog(box);box.querySelector('#item-title').focus();
     const sel=box.querySelector('#item-type');sel.addEventListener('change',()=>{box.querySelector('#dose-field').hidden=sel.value!=='med';box.querySelector('label[for="item-title"]').textContent=sel.value==='med'?'Nome do medicamento':'Nome da refeição';box.querySelector('label[for="item-times"]').textContent=sel.value==='med'?'Horários':'Horário'});
     box.querySelector('form').addEventListener('submit',e=>{
-      e.preventDefault();if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');box.close();return}if(room&&roomConflict){toast(conflictMessage);return}const data=new FormData(e.target),timesRaw=String(data.get('times')).split(',').map(t=>t.trim()),times=[...new Set(timesRaw)];const days=data.getAll('days').map(Number),title=String(data.get('title')).trim(),type=String(data.get('type'));
+      e.preventDefault();
+      if(!box.open||e.currentTarget.dataset.submitted==='true')return;
+      if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');box.close();return}
+      if(room&&roomConflict){toast(conflictMessage);return}
+      const data=new FormData(e.target),timesRaw=String(data.get('times')).split(',').map(t=>t.trim()),times=[...new Set(timesRaw)];const days=data.getAll('days').map(Number),title=String(data.get('title')).trim(),type=String(data.get('type'));
       if(!title||times.length<1||times.length>24||times.some(t=>!isTime(t))){toast('Preencha um nome e horários válidos (HH:mm).');return}
       if(type==='meal'&&times.length!==1){toast('Para cada refeição, informe um único horário.');return}
       if(days.length===0){toast('Selecione pelo menos um dia.');return}
+      // Mark successful validation before mutating state: repeat submits must be idempotent.
+      e.currentTarget.dataset.submitted='true';
       const entry={id:item?.id||uid(),type,title,dose:type==='med'?String(data.get('dose')||'').trim():'',note:String(data.get('note')||'').trim(),days:days.sort(),times:times.sort(),archived:item?.archived||false,createdAt:item?.createdAt||new Date().toISOString()};
       // Keep the new entry visible under any active routine filter or search.
       if(!item&&tab==='routine'){
