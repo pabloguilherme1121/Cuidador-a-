@@ -180,7 +180,9 @@ with TemporaryDirectory() as temp:
                 assert chat.locator('#chat-send').inner_text()=='Enviando…', 'O botão precisa mostrar envio em andamento'
                 chat.locator('#chat-text').fill('Segunda mensagem fictícia ainda não enviada')
                 page.evaluate("window.__completeChatPost()")
-                page.wait_for_function("document.querySelector('#chat-offline-fixture #chat-form').dataset.sending!=='yes'")
+                # Locator polling works with the production CSP; wait_for_function
+                # evaluates JavaScript and may be rejected by script-src 'self'.
+                chat.locator('#chat-form:not([data-sending="yes"])').wait_for(state='attached')
                 assert chat.locator('#chat-text').input_value()=='Segunda mensagem fictícia ainda não enviada', 'Texto digitado durante envio foi apagado'
                 assert chat.locator('#chat-send').is_enabled()
                 assert chat.locator('#chat-send').inner_text()=='Enviar mensagem'
