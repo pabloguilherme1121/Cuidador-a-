@@ -272,6 +272,8 @@ with sync_playwright() as p:
    assert conflicted.locator('[data-action="backup"]').is_enabled()
    assert conflicted.locator('[data-action="import"]').is_disabled()
    assert conflicted.locator('[data-action="wipe-routines"]').is_disabled()
+   assert conflicted.locator('#theme-choice').is_disabled(), 'Preferências compartilhadas não devem mudar durante conflito'
+   assert conflicted.locator('#reminder-switch').is_disabled(), 'Lembretes compartilhados não devem mudar durante conflito'
    assert conflicted.locator('[data-action="wipe"]').is_enabled(), 'Apagar dados só do aparelho deve continuar disponível'
    assert conflicted.evaluate('document.documentElement.scrollWidth<=window.innerWidth')
    assert not conflict_errors, f'Conflito gerou erro JS: {conflict_errors}'
