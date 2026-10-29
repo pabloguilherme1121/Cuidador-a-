@@ -1,5 +1,5 @@
 // No personal routine data is sent to or cached by this Service Worker.
-const CACHE='cuidadora-cache-v13-privacy';
+const CACHE='cuidadora-cache-v14-routine-search';
 const ASSETS=['./','./index.html','./privacidade.html','./styles.css','./app.js','./core.mjs','./room.mjs','./chat.mjs','./timeline.mjs','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png','./assets/pg-bot.webp'];
 // Always seek fresh executable assets; if there is no connection, use the offline copy.
 const NETWORK_FIRST=new Set(['index.html','app.js','core.mjs','room.mjs','chat.mjs','timeline.mjs','styles.css','manifest.webmanifest']);
@@ -11,7 +11,10 @@ self.addEventListener('activate',event=>event.waitUntil(Promise.all([
 async function networkFirst(req){
  try{
   const res=await fetch(req);
-  if(res.ok){const copy=res.clone();const cache=await caches.open(CACHE);await cache.put(req,copy)}
+  if(res.ok){
+   // A quota error must not turn a healthy network response into stale content.
+   try{const cache=await caches.open(CACHE);await cache.put(req,res.clone())}catch{}
+  }
   return res;
  }catch{
   const hit=await caches.match(req);

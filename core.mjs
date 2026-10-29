@@ -53,3 +53,16 @@ export function todayHeroState(list=[]) {
  if(list.some(o=>!o.doneAt&&o.status==='late'))return {status:'late',title:'Existem horários atrasados',description:'Confira as pendências na linha do tempo. Marque apenas os cuidados realmente realizados.'};
  return {status:'pending',title:'Sua rotina ainda tem pendências',description:'Confira os horários pendentes na linha do tempo.'};
 }
+
+/** One shared search rule for the initial list and live input filtering. */
+const foldSearch=value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+export function routineMatches(item,query='') {
+ if(!item||typeof item!=='object')return false;
+ const needle=foldSearch(query).trim();
+ return !needle||[item.title,item.note,item.dose].some(value=>foldSearch(value).includes(needle));
+}
+
+/** Refresh the Today dashboard on minute changes, without rebuilding it every poll. */
+export function shouldRefreshToday(previousMinute,currentMinute,tab,visible,onboarded){
+ return tab==='today'&&visible===true&&onboarded===true&&Number.isFinite(currentMinute)&&currentMinute!==previousMinute;
+}

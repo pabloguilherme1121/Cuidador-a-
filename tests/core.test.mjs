@@ -57,7 +57,27 @@ test('sound profiles, volume and vibration preferences are whitelisted',()=>{
  assert.equal(b.soundPreset,'soft');assert.equal(b.volume,30);assert.equal(b.vibration,false);
 });
 
-// A stale storage flag must not mark a paused countdown as completed.
+import {routineMatches} from '../core.mjs';
+test('busca da rotina usa títulos, observações e doses de forma consistente',()=>{
+ const item={title:'Remédio da Manhã',note:'Após o café',dose:'Conforme prescrição'};
+ assert.equal(routineMatches(item,''),true);
+ assert.equal(routineMatches(item,'  MANHA  '),true);
+ assert.equal(routineMatches(item,'cafe'),true);
+ assert.equal(routineMatches(item,'prescricao'),true);
+ assert.equal(routineMatches(item,'14:30'),false,'O horário não faz parte dos critérios informados no filtro');
+ assert.equal(routineMatches(null,'teste'),false);
+ assert.equal(routineMatches({title:'Jantar',note:'',dose:''},'almoco'),false);
+});
+
+import {shouldRefreshToday} from '../core.mjs';
+test('tela Hoje só reconstrói quando o minuto muda e ela está visível',()=>{
+ assert.equal(shouldRefreshToday(100,100,'today',true,true),false);
+ assert.equal(shouldRefreshToday(100,101,'today',true,true),true);
+ assert.equal(shouldRefreshToday(100,101,'routine',true,true),false);
+ assert.equal(shouldRefreshToday(100,101,'today',false,true),false);
+ assert.equal(shouldRefreshToday(100,101,'today',true,false),false);
+});
+
 test('paused timer ignores a stale finished flag while time remains',()=>{
  const paused=restoreTimer({duration:300,remaining:120,running:false,deadline:null,finished:true},1000);
  assert.equal(paused.remaining,120);
