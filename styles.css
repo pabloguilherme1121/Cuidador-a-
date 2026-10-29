@@ -178,3 +178,18 @@ button[data-action='room-copy']{min-height:48px}
 
 /* Realce discreto do cartão enquanto seus controles têm foco via teclado. */
 .routine-card:focus-within{border-color:var(--strokeAccent);box-shadow:0 0 0 1px var(--strokeAccent)}
+
+/* Ajuda local PG Bot: funciona offline e não cobre navegação nem formulários. */
+.pg-help{margin-top:18px}
+.pg-help-head{display:flex;align-items:center;gap:13px;margin-bottom:12px}
+.pg-help-head img{flex:none;width:48px;height:56px;object-fit:contain}
+.pg-help-head h2{margin:0 0 4px}
+.pg-help-head p{margin:0}
+.pg-help-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
+.pg-help-shortcuts .btn{min-height:44px}
+.pg-help details{border-top:1px solid var(--line)}
+.pg-help details:last-child{border-bottom:1px solid var(--line)}
+.pg-help summary{display:list-item;min-height:44px;padding:12px 2px;cursor:pointer;font-weight:700;line-height:1.5}
+.pg-help summary:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.pg-help details p{margin:0 0 14px;line-height:1.6;color:var(--fg)}
+@media(max-width:390px){.pg-help-shortcuts .btn{flex:1 1 100%}}
