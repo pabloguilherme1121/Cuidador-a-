@@ -27,6 +27,10 @@ with sync_playwright() as p:
   assert page.locator('h1').count()>=1, f'No heading at {w}'
   page.locator('#onboard-form button[type=submit]').click()
   assert page.locator('.tabbtn').count()==6
+  # As seis abas devem caber na mesma linha, sem sobrepor o conteúdo do celular.
+  nav_positions=page.locator('.tabbtn').evaluate_all('(nodes)=>nodes.map(n=>({top:n.getBoundingClientRect().top,width:n.getBoundingClientRect().width}))')
+  assert max(x['top'] for x in nav_positions)-min(x['top'] for x in nav_positions)<2, f'Navegação em duas linhas: {w}px'
+  assert min(x['width'] for x in nav_positions)>=44, f'Alvo estreito na navegação: {w}px'
   assert page.locator('h1').count()>=1
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-hoje.png'),full_page=True)
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
@@ -57,8 +61,15 @@ with sync_playwright() as p:
   page.locator('#item-times').fill('12:30')
   page.locator('#item-form button[type=submit]').click()
   assert page.get_by_text('Almoço teste').count()>0
+  page.locator('#routine-search').fill('Almoco')
+  assert page.locator('.routine-card:visible').count()==1, 'Busca deveria ignorar acentos'
+  assert page.locator('#routine-active-count').inner_text()=='1'
+  page.locator('#routine-search').fill('12:30')
+  assert page.locator('.routine-card:visible').count()==0, 'Busca durante digitação não deve usar horários se o filtro não usa'
+  assert page.locator('#routine-active-count').inner_text()=='0'
   page.locator('#routine-search').fill('inexistente')
   assert page.locator('.routine-card:visible').count()==0
+  assert page.locator('#routine-search-empty').is_visible()
   page.locator('.tabbtn[data-tab="today"]').click()
   page.locator('[data-action="add"][data-type="med"]').first.click()
   page.locator('#item-title').fill('Medicamento teste')
