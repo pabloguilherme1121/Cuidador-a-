@@ -375,7 +375,13 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     if(action==='close-legal'){document.getElementById('legalDialog').close();return}
     if(action==='add'){if(room&&!roomCanEdit(room)){toast('Sala somente leitura.');return}openEditor(null,el.dataset.type||'meal');return}
     if(action==='edit'){const item=state.items.find(x=>x.id===id);if(item)openEditor(item);return}
-    if(action==='archive'){setState(s=>({...s,items:s.items.map(x=>x.id===id?{...x,archived:!x.archived}:x)}));toast('Rotina atualizada.');return}
+    if(action==='archive'){
+      const item=state.items.find(x=>x.id===id);if(!item)return;
+      const hadFocus=document.activeElement===el;
+      setState(s=>({...s,items:s.items.map(x=>x.id===id?{...x,archived:!x.archived}:x)}));
+      if(hadFocus)[...document.querySelectorAll('.routine-card [data-action="archive"]')].find(button=>button.dataset.id===id)?.focus({preventScroll:true});
+      toast(item.archived?'Rotina reativada.':'Rotina arquivada.');return
+    }
     if(['timeline-edit','timeline-remove'].includes(action)){
       if(roomConflict){tab='room';render();toast('Resolva o conflito da sala antes de alterar.');return}
       const item=state.items.find(x=>x.id===id&&!x.archived);
@@ -389,7 +395,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
       try{const update=removeOccurrenceTime(item,el.dataset.time);setState(s=>({...s,items:update?s.items.map(x=>x.id===id?update:x):s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();toast('Horário removido. Histórico preservado.')}catch(err){toast(err.message)}return;
     }
     if(action==='delete'){const item=state.items.find(x=>x.id===id);if(item)confirmDelete(item);return}
-    if(action==='confirm-delete'){setState(s=>({...s,items:s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();toast('Horário removido.');return}
+    if(action==='confirm-delete'){setState(s=>({...s,items:s.items.filter(x=>x.id!==id)}));document.getElementById('confirmDialog').close();document.querySelector('.toolRow [data-action="add"]:not(:disabled)')?.focus({preventScroll:true});toast('Horário removido.');return}
     if(action==='cancel-delete'){document.getElementById('confirmDialog').close();return}
     if(action==='close-edit'){document.getElementById('editDialog').close();return}
     if(action==='toggle'){const key=el.dataset.key;mark(key);[...document.querySelectorAll('[data-action="toggle"]')].find(button=>button.dataset.key===key)?.focus({preventScroll:true});return}

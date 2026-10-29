@@ -151,6 +151,25 @@ with sync_playwright() as p:
   assert page.locator('#routine-search').evaluate('(el)=>document.activeElement===el')
   assert not page.locator('#routine-search-empty').is_visible()
   assert page.locator('.routine-card:visible').count()>=5
+  # Keyboard flow: archive and restore the same fictitious item without losing focus.
+  sample=page.locator('.routine-card').filter(has_text='Almoço teste')
+  archive=sample.locator('[data-action="archive"]')
+  archive.focus()
+  page.keyboard.press('Enter')
+  assert 'Reativar' in sample.locator('[data-action="archive"]').inner_text()
+  assert sample.locator('[data-action="archive"]').evaluate('(el)=>document.activeElement===el'), f'Arquivar perdeu foco em {w}px'
+  page.keyboard.press('Enter')
+  assert 'Arquivar' in sample.locator('[data-action="archive"]').inner_text()
+  assert sample.locator('[data-action="archive"]').evaluate('(el)=>document.activeElement===el'), f'Reativar perdeu foco em {w}px'
+  sample.locator('[data-action="delete"]').focus()
+  page.keyboard.press('Enter')
+  assert page.locator('#confirmDialog').evaluate('(el)=>el.open')
+  confirm=page.locator('#confirmDialog [data-action="confirm-delete"]')
+  confirm.focus()
+  page.keyboard.press('Enter')
+  assert sample.count()==0, 'Exclusão não removeu o cartão de teste'
+  assert page.locator('.toolRow [data-action="add"]').evaluate('(el)=>document.activeElement===el'), f'Exclusão deixou foco perdido em {w}px'
+  assert page.locator('.routine-card:visible').count()>=4, 'Exclusão afetou outras rotinas'
   page.locator('.tabbtn[data-tab="today"]').click()
   page.locator('[data-action="add"][data-type="med"]').first.click()
   page.locator('#item-title').fill('Medicamento teste')
