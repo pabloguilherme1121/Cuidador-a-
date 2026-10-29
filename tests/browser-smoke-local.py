@@ -31,6 +31,8 @@ with sync_playwright() as p:
   nav_positions=page.locator('.tabbtn').evaluate_all('(nodes)=>nodes.map(n=>({top:n.getBoundingClientRect().top,width:n.getBoundingClientRect().width}))')
   assert max(x['top'] for x in nav_positions)-min(x['top'] for x in nav_positions)<2, f'Navegação em duas linhas: {w}px'
   assert min(x['width'] for x in nav_positions)>=44, f'Alvo estreito na navegação: {w}px'
+  min_nav_font=page.locator('.tabbtn').evaluate_all('(nodes)=>Math.min(...nodes.map(n=>parseFloat(getComputedStyle(n).fontSize)))')
+  assert min_nav_font>=10, f'Rótulo da navegação ilegível em {w}px: {min_nav_font}px'
   assert page.locator('h1').count()>=1
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-hoje.png'),full_page=True)
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
@@ -91,8 +93,21 @@ with sync_playwright() as p:
   assert page.evaluate('document.documentElement.dataset.accent')=='ocean'
   assert palette.get_attribute('aria-pressed')=='true'
   assert palette.evaluate('(el)=>document.activeElement===el'), f'Paleta perdeu foco após mudança de cor: {w}px'
-  page.locator('#theme-choice').select_option('dark')
+  theme=page.locator('#theme-choice')
+  theme.focus()
+  theme.select_option('dark')
   assert page.evaluate('document.documentElement.dataset.theme')=='dark'
+  assert theme.evaluate('(el)=>document.activeElement===el'), f'Tema perdeu foco após seleção em {w}px'
+  text_size=page.locator('#font-scale')
+  text_size.focus()
+  text_size.select_option('large')
+  assert page.evaluate('document.documentElement.dataset.scale')=='large'
+  assert text_size.evaluate('(el)=>document.activeElement===el'), f'Tamanho do texto perdeu foco em {w}px'
+  vibration=page.locator('#vibration-choice')
+  vibration.focus()
+  vibration.check()
+  assert vibration.is_checked()
+  assert vibration.evaluate('(el)=>document.activeElement===el'), f'Vibração perdeu foco após alteração em {w}px'
   page.locator('[data-action="legal"][data-page="privacidade"]').click()
   assert page.locator('#legalDialog').evaluate('(e)=>e.open')
   page.locator('[data-action="close-legal"]').click()

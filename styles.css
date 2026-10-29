@@ -89,7 +89,7 @@ button[data-action='room-copy']{min-height:48px}
 .room-page .inline-actions{align-items:stretch}.room-page .inline-actions .btn{min-height:48px;overflow-wrap:anywhere}
 .room-link{justify-content:flex-start;gap:10px;min-height:57px}.room-link span{min-width:0;overflow-wrap:anywhere}
 .tabbar-inner{grid-template-columns:repeat(6,minmax(0,1fr))}
-@media(max-width:390px){.tabbtn{font-size:clamp(.52rem,2.25vw,.65rem)}.room-page .inline-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-page .inline-actions button{padding-inline:7px}}
+@media(max-width:390px){.tabbtn{font-size:clamp(.625rem,2.9vw,.73rem)}.room-page .inline-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.room-page .inline-actions button{padding-inline:7px}}
 @media(max-width:350px){.room-page .inline-actions{grid-template-columns:1fr}.room-page .inline-actions button{width:100%}}
 
 /* v3.2: compact, legible sync state and predictable room actions on narrow phones. */
