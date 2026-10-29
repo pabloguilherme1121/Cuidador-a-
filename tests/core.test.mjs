@@ -86,3 +86,15 @@ test('paused timer ignores a stale finished flag while time remains',()=>{
  const complete=restoreTimer({duration:300,remaining:0,running:false,deadline:null,finished:true},1000);
  assert.equal(complete.finished,true);
 });
+
+import {timerProgressPercent} from '../core.mjs';
+test('anel do timer reflete o progresso e limita valores inválidos',()=>{
+ assert.equal(timerProgressPercent(900,900),100);
+ assert.equal(timerProgressPercent(450,900),50);
+ assert.equal(timerProgressPercent(0,900),0);
+ assert.equal(timerProgressPercent(1200,900),100);
+ assert.equal(timerProgressPercent(-5,900),0);
+ assert.equal(timerProgressPercent(100,0),0);
+ assert.equal(timerProgressPercent(NaN,900),0);
+ assert.equal(timerProgressPercent(100,NaN),0);
+});
