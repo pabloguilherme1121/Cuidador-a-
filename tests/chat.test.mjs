@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCredentials} from '../room.mjs';
-import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState} from '../chat.mjs';
+import {createChatMessage,openChatMessage,validChatText,chatMarkup,limitChatAlias,chatControlsState,shouldPaintChat} from '../chat.mjs';
 import {roomApi} from '../cloudflare/worker.mjs';
 
 const base='https://cuidadora.example';
@@ -105,4 +105,11 @@ test('chat blocks requests offline without losing the editable draft',()=>{
  assert.match(markup, /id="chat-send"/);
  assert.match(markup, /id="chat-clear"/);
  assert.match(markup, /id="chat-refresh"/);
+});
+
+test('chat preserves existing DOM on unchanged polling, but updates first and full reads',()=>{
+ assert.equal(shouldPaintChat({painted:false,full:false,changed:false}),true);
+ assert.equal(shouldPaintChat({painted:true,full:false,changed:false}),false);
+ assert.equal(shouldPaintChat({painted:true,full:false,changed:true}),true);
+ assert.equal(shouldPaintChat({painted:true,full:true,changed:false}),true);
 });
