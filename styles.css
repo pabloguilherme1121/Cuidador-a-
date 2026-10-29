@@ -169,3 +169,9 @@ button[data-action='room-copy']{min-height:48px}
 /* 44px touch targets for frequent actions; visible pressed feedback without layout shift. */
 .btn.small,.chip-filter{min-height:44px}
 .btn:not(:disabled):active,.iconbutton:not(:disabled):active,.tabbtn:not(:disabled):active,.chip-filter:not(:disabled):active{filter:brightness(.94)}
+
+/* A conflict blocks shared writes but leaves recovery controls accessible. */
+.room-conflict-hint{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--terra);border-radius:14px;background:var(--terraTint);color:var(--fg);font-size:.88rem;line-height:1.55;overflow-wrap:anywhere}
+.room-conflict-hint strong{font-weight:800}
+.room-conflict-hint .btn{margin-left:auto;min-height:44px;white-space:normal}
+@media(max-width:390px){.room-conflict-hint .btn{margin-left:0;width:100%}}
