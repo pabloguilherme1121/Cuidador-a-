@@ -34,6 +34,15 @@ with sync_playwright() as p:
   assert page.locator('h1').count()>=1
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-hoje.png'),full_page=True)
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Horizontal overflow at {w}'
+  # Keyboard activation must keep focus on the replacement button after render().
+  page.locator('.tabbtn[data-tab="routine"]').focus()
+  page.keyboard.press('Enter')
+  assert page.locator('.tabbtn[data-tab="routine"]').evaluate('(el)=>document.activeElement===el'), f'Tab focus lost at {w}px'
+  page.locator('[data-action="routine-filter"][data-filter="med"]').focus()
+  page.keyboard.press('Enter')
+  assert page.locator('[data-action="routine-filter"][data-filter="med"]').evaluate('(el)=>document.activeElement===el'), f'Filter focus lost at {w}px'
+  page.locator('[data-action="routine-filter"][data-filter="all"]').click()
+  assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), f'Keyboard navigation overflow at {w}px'
   page.get_by_role('button',name='Timer',exact=True).click()
   assert page.locator('#timer-display').inner_text()=='15:00'
   assert page.locator('.timer-ring').evaluate("el=>el.style.getPropertyValue('--timer-progress')")=='100%'
