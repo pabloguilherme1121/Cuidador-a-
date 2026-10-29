@@ -237,6 +237,45 @@ with sync_playwright() as p:
    assert viewer.evaluate('document.documentElement.scrollWidth<=window.innerWidth'), 'Leitura overflow em 390px'
    assert not viewer_errors, f'Sala de leitura teve erro JS: {viewer_errors}'
    viewer.close()
+   # Isolated editor with an unresolved synchronization conflict, using fictitious data.
+   conflicted=b.new_page(viewport={'width':390,'height':820})
+   conflict_errors=[]
+   conflicted.on('pageerror',lambda e:conflict_errors.append(str(e)))
+   conflicted.set_content(html)
+   conflicted.evaluate("""() => {
+     const db=new Map([
+       ['cuidadora-room-v1',JSON.stringify({id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43),role:'editor',version:1,dirty:true,conflict:true})],
+       ['cuidadora-data-v2',JSON.stringify({version:1,profile:{name:'Teste',onboarded:true},settings:{},items:[{id:'med001',type:'med',title:'Teste fictício',dose:'',note:'',days:[0,1,2,3,4,5,6],times:['08:00'],archived:false,createdAt:'2026-10-20T10:00:00.000Z'}],logs:{},noticeLog:{}})]
+     ]);
+     Object.defineProperty(window,'localStorage',{configurable:true,value:{
+       getItem:k=>db.get(k)||null,
+       setItem:(k,v)=>db.set(k,v),
+       removeItem:k=>db.delete(k)
+     }});
+   }""")
+   conflicted.add_style_tag(content=(ROOT/'styles.css').read_text())
+   conflicted.add_script_tag(content=core)
+   conflicted.add_script_tag(content=room)
+   conflicted.add_script_tag(content=timeline)
+   conflicted.add_script_tag(content=app)
+   assert conflicted.locator('[data-action="add"]').first.is_disabled(), 'Conflito ainda permite novos horários'
+   assert conflicted.locator('[data-action="room-open"]').is_enabled(), 'Resolver conflito deve seguir acessível'
+   conflicted.locator('.tabbtn[data-tab="routine"]').click()
+   assert conflicted.locator('.routine-card [data-action="edit"]').first.is_disabled()
+   assert conflicted.locator('.routine-card [data-action="archive"]').first.is_disabled()
+   assert conflicted.locator('.routine-card [data-action="delete"]').first.is_disabled()
+   assert conflicted.get_by_text('Conflito de sincronização.',exact=False).is_visible()
+   previous_data=conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")
+   conflicted.evaluate("""() => {const stale=document.createElement('button');stale.dataset.action='archive';stale.dataset.id='med001';document.body.append(stale);stale.click();stale.remove();}""")
+   assert conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")==previous_data, 'Ação antiga não deve alterar rotinas no conflito'
+   conflicted.locator('.tabbtn[data-tab="settings"]').click()
+   assert conflicted.locator('[data-action="backup"]').is_enabled()
+   assert conflicted.locator('[data-action="import"]').is_disabled()
+   assert conflicted.locator('[data-action="wipe-routines"]').is_disabled()
+   assert conflicted.locator('[data-action="wipe"]').is_enabled(), 'Apagar dados só do aparelho deve continuar disponível'
+   assert conflicted.evaluate('document.documentElement.scrollWidth<=window.innerWidth')
+   assert not conflict_errors, f'Conflito gerou erro JS: {conflict_errors}'
+   conflicted.close()
   assert not errors, f'JS errors at {w}: {errors}'
   print(f'{w}px: onboarding, tabs, timer, theme, palette, legal, CRUD and search passed')
   if w==390:page.screenshot(path=str(ROOT/'test-results'/'cuidadora-mobile.png'),full_page=True)
