@@ -304,7 +304,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
   function timerTick(){
     const finished=updateTimer();
     const el=document.getElementById('timer-display');
-    if(el)el.textContent=`${String(Math.floor(timerRemaining/60)).padStart(2,'0')}:${String(timerRemaining%60).padStart(2,'0')}`;
+    if(el){const display=`${String(Math.floor(timerRemaining/60)).padStart(2,'0')}:${String(timerRemaining%60).padStart(2,'0')}`;if(el.textContent!==display)el.textContent=display;}
     if(finished){toast('O timer terminou.');beep();if(state.settings.reminders&&'Notification' in window&&Notification.permission==='granted')void showSystemNotice('Timer concluído','Seu tempo terminou.','cuidadora-timer-fim');if(tab==='timer')render()}
   }
   function setTimerMinutes(min){if(!Number.isInteger(min)||min<1||min>180){toast('Escolha entre 1 e 180 minutos.');return}timerRunning=false;timerDeadline=null;timerFinished=false;timerDuration=min*60;timerRemaining=timerDuration;saveTimer();render()}
