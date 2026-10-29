@@ -68,3 +68,12 @@ test('busca da rotina usa títulos, observações e doses de forma consistente',
  assert.equal(routineMatches(null,'teste'),false);
  assert.equal(routineMatches({title:'Jantar',note:'',dose:''},'almoco'),false);
 });
+
+import {shouldRefreshToday} from '../core.mjs';
+test('tela Hoje só reconstrói quando o minuto muda e ela está visível',()=>{
+ assert.equal(shouldRefreshToday(100,100,'today',true,true),false);
+ assert.equal(shouldRefreshToday(100,101,'today',true,true),true);
+ assert.equal(shouldRefreshToday(100,101,'routine',true,true),false);
+ assert.equal(shouldRefreshToday(100,101,'today',false,true),false);
+ assert.equal(shouldRefreshToday(100,101,'today',true,false),false);
+});
