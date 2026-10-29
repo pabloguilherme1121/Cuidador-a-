@@ -6,6 +6,7 @@ const from64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.r
 const ID=/^[\w-]{16}$/;
 export const validChatText=v=>typeof v==='string'&&v.trim().length>=1&&v.trim().length<=500;
 /** Keep the chat actions consistent with network and request state. */
+export const shouldPaintChat=({painted=false,full=false,changed=false}={})=>!painted||full||changed;
 export function chatControlsState({online=true,loading=false,sending=false,canSend=false}={}){
  return {
   refreshDisabled:online!==true||loading===true,
@@ -52,7 +53,7 @@ export function chatMarkup(canSend){
 /** Mount only in Sala; stop polling when the tab is removed or browser is hidden. */
 export function mountRoomChat(element,room,{onError=()=>{}}={}){
  if(!element||!room)return ()=>{};
- let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false;
+ let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false,painted=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
  const refreshButton=element.querySelector('#chat-refresh'),sendButton=form?.querySelector('#chat-send'),clearButton=element.querySelector('#chat-clear');
  const alias=element.querySelector('#chat-alias');
@@ -104,7 +105,8 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const ids=new Set(messages.map(x=>x.id));const hadNew=incoming.some(m=>!ids.has(m.id));for(const m of incoming)if(!ids.has(m.id)){messages.push(m);ids.add(m.id)}
    messages=messages.slice(-100);cursor=data.cursor||cursor;
    idleCycles=hadNew?0:Math.min(10,idleCycles+1);failures=0;rateLimited=false;
-   paint();setStatus(hadNew?'Novas mensagens recebidas.':'Conversa atualizada.');
+   if(shouldPaintChat({painted,full,changed:hadNew})){paint();painted=true}
+   setStatus(hadNew?'Novas mensagens recebidas.':'Conversa atualizada.');
   }catch(e){failures=Math.min(5,failures+1);setStatus(e.message||'Chat temporariamente indisponível.');onError(e)}finally{loading=false;schedule();syncControls()}
  };
  const submit=async e=>{
