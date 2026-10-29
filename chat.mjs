@@ -57,7 +57,7 @@ export function chatMarkup(canSend){
 /** Mount only in Sala; stop polling when the tab is removed or browser is hidden. */
 export function mountRoomChat(element,room,{onError=()=>{}}={}){
  if(!element||!room)return ()=>{};
- let alive=true,loading=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false,painted=false;
+ let alive=true,loading=false,refreshAfterLoad=false,cursor='',messages=[],timer=null,polls=0,idleCycles=0,failures=0,rateLimited=false,painted=false;
  const box=element.querySelector('#chat-messages'),status=element.querySelector('#chat-status'),form=element.querySelector('#chat-form');
  const refreshButton=element.querySelector('#chat-refresh'),sendButton=form?.querySelector('#chat-send'),clearButton=element.querySelector('#chat-clear');
  const alias=element.querySelector('#chat-alias'),draft=form?.querySelector('#chat-text');
@@ -92,8 +92,9 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
  };
  const schedule=()=>{clearTimeout(timer);if(!alive)return;timer=setTimeout(()=>void refresh(),chatRefreshIntervalMs({idleCycles,failures,rateLimited}));};
  const refresh=async(force=false)=>{
-  if(!alive||loading||!navigator.onLine||document.visibilityState!=='visible')return;
+  if(!alive||!navigator.onLine||document.visibilityState!=='visible')return;
   if(!box?.isConnected)return;
+  if(loading){if(force)refreshAfterLoad=true;return;}
   loading=true;syncControls();
   try{
    const cred=await completeCredentials(room);
@@ -111,7 +112,12 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    idleCycles=hadNew?0:Math.min(10,idleCycles+1);failures=0;rateLimited=false;
    if(shouldPaintChat({painted,full,changed:hadNew})){paint();painted=true}
    setStatus(hadNew?'Novas mensagens recebidas.':'Conversa atualizada.');
-  }catch(e){failures=Math.min(5,failures+1);setStatus(e.message||'Chat temporariamente indisponível.');onError(e)}finally{loading=false;schedule();syncControls()}
+  }catch(e){failures=Math.min(5,failures+1);setStatus(e.message||'Chat temporariamente indisponível.');onError(e)}finally{
+   loading=false;schedule();syncControls();
+   // A send can finish while a GET is still in flight. Coalesce requests
+   // and read again once the previous response has been processed.
+   if(refreshAfterLoad&&alive){refreshAfterLoad=false;void refresh(true)}
+  }
  };
  const submit=async e=>{
   e.preventDefault();if(!roomCanEdit(room)||!form||form.dataset.sending==='yes')return;
@@ -126,7 +132,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const res=await fetch(`/api/rooms/${room.id}/messages`,{method:'POST',headers:{'Content-Type':'application/json','X-Room-Token':cred.token},body:JSON.stringify(encrypted),cache:'no-store'});
    if(!res.ok){const payload=await res.json().catch(()=>({}));throw Error(payload.error||'Falha ao enviar mensagem')}
    if(shouldClearSentDraft(field.value,message))field.value='';try{localStorage.setItem('cuidadora-chat-alias',limitChatAlias(author))}catch{}
-   await refresh();setStatus('Mensagem enviada.');
+   await refresh(true);setStatus('Mensagem enviada.');
   }catch(e){setStatus('Mensagem não enviada: '+e.message)}finally{delete form.dataset.sending;syncControls()}
  };
  const clear=async()=>{
