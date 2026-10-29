@@ -29,8 +29,14 @@ test('configurações de sala somente leitura não oferecem exclusão nem restau
 });
 
 test('botão Enviar mostra estado de pendência e compartilha regra com o handler',()=>{
- assert.match(app,/data-action="room-push"\s+\$\{roomCanSend\(room,\{version:roomVersion,dirty:roomDirty,busy:roomBusy,conflict:roomConflict\}\)\?'':'disabled'\}/);
- assert.match(app,/if\(!roomCanSend\(room,\{version:roomVersion,dirty:roomDirty,busy:roomBusy,conflict:roomConflict\}\)\)return;roomBusy=true;/);
+ assert.match(app,/data-action="room-push"\s+\$\{roomCanSend\(room,\{version:roomVersion,dirty:roomDirty,busy:roomBusy,conflict:roomConflict,online:navigator.onLine\}\)\?'':'disabled'\}/);
+ assert.match(app,/if\(!roomCanSend\(room,\{version:roomVersion,dirty:roomDirty,busy:roomBusy,conflict:roomConflict,online:navigator.onLine\}\)\)return;roomBusy=true;/);
  assert.match(app,/Nenhuma alteração local pendente para enviar\./);
  assert.match(app,/Há um conflito\. Resolva antes de enviar\./);
+});
+
+test('botões manuais da Sala descrevem e respeitam o modo offline',()=>{
+ assert.match(app,/data-action="room-pull"\s+\$\{roomCanReceive\(\{connected:!!room,online:navigator.onLine,busy:roomBusy\}\)\?'':'disabled'\}/);
+ assert.match(app,/Sem conexão: use as rotinas locais e sincronize quando a internet voltar\./);
+ assert.match(app,/if\(!roomCanReceive\(\{connected:!!room,online:navigator.onLine,busy:roomBusy\}\)\)\{toast\('Sem conexão ou sincronização já em andamento\.'\);return\}/);
 });

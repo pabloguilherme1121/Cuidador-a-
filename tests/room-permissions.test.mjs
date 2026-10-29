@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,roomCanSend} from '../room.mjs';
+import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragment,roomCanEdit,roomCanSend,roomCanReceive} from '../room.mjs';
 
 test('new room creates distinct viewing and editing invitations',async()=>{
  const owner=await createCredentials();
@@ -36,4 +36,15 @@ test('enviar alterações só é possível para editor com versão e mudanças s
  assert.equal(roomCanSend(editor,{...ready,busy:true}),false);
  assert.equal(roomCanSend(editor,{...ready,conflict:true}),false);
  assert.equal(roomCanSend(null,ready),false);
+});
+
+test('controles manuais de sincronização respeitam conexão e processamento',()=>{
+ const editor={id:'a'.repeat(22),key:'b'.repeat(43),editorSecret:'c'.repeat(43)};
+ const ready={version:2,dirty:true,busy:false,conflict:false,online:true};
+ assert.equal(roomCanSend(editor,ready),true);
+ assert.equal(roomCanSend(editor,{...ready,online:false}),false);
+ assert.equal(roomCanReceive({connected:true,online:true,busy:false}),true);
+ assert.equal(roomCanReceive({connected:true,online:false,busy:false}),false);
+ assert.equal(roomCanReceive({connected:true,online:true,busy:true}),false);
+ assert.equal(roomCanReceive({connected:false,online:true,busy:false}),false);
 });
