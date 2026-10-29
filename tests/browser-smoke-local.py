@@ -332,7 +332,20 @@ with sync_playwright() as p:
    assert conflicted.locator('#reminder-switch').is_disabled(), 'Lembretes compartilhados não devem mudar durante conflito'
    assert conflicted.locator('[data-action="wipe"]').is_enabled(), 'Apagar dados só do aparelho deve continuar disponível'
    assert conflicted.evaluate('document.documentElement.scrollWidth<=window.innerWidth')
-   assert not conflict_errors, f'Conflito gerou erro JS: {conflict_errors}'
+   # Revoking the room on another tab must not leave stale editing credentials here.
+   conflicted.locator('.tabbtn[data-tab="room"]').click()
+   assert conflicted.get_by_text('Sua sala está conectada').is_visible()
+   previous_local=conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")
+   conflicted.evaluate("""() => {
+     const key='cuidadora-room-v1',oldValue=localStorage.getItem(key);
+     localStorage.removeItem(key);
+     window.dispatchEvent(new StorageEvent('storage',{key,oldValue,newValue:null}));
+   }""")
+   assert conflicted.get_by_text('Crie sua sala particular').is_visible(), 'Outra aba removeu a sala mas esta manteve as credenciais'
+   assert conflicted.locator('[data-action="room-push"]').count()==0, 'Botão de enviar dados da sala antiga continua visível'
+   assert conflicted.locator('[data-action="room-create"]').is_enabled(), 'Criar uma nova sala deve seguir disponível'
+   assert conflicted.evaluate("localStorage.getItem('cuidadora-data-v2')")==previous_local, 'Desconexão de outra aba não deve apagar rotinas locais'
+   assert not conflict_errors, f'Alteração externa da sala gerou erro JS: {conflict_errors}'
    conflicted.close()
    # Simulate a slow first chat read colliding with a send, using fictitious data.
    chat_page=b.new_page(viewport={'width':390,'height':820})
