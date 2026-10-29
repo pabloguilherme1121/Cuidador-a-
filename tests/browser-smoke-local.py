@@ -308,6 +308,7 @@ with sync_playwright() as p:
      window.__chatSent=false;
      window.__releaseFirstRead=()=>firstReadResolve?.({ok:true,json:async()=>({messages:[],cursor:''})});
      let reads=0;
+     window.__chatReads=()=>reads;
      window.fetch=async (url,options={})=>{
        if(options.method==='POST'){
          sent.push({...JSON.parse(options.body),createdAt:Date.now()});
@@ -330,14 +331,19 @@ with sync_playwright() as p:
      window.openChatMessage=async(_,data)=>data;
      const root=document.getElementById('chat-host');
      root.innerHTML=chatMarkup(true);
-     window.__stopChat=mountRoomChat(root,{id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43)});
+     window.__chatErrors=[];
+     window.__stopChat=mountRoomChat(root,{id:'A'.repeat(22),key:'B'.repeat(43),editorSecret:'C'.repeat(43)},{onError:e=>window.__chatErrors.push(e.message)});
    }""")
    chat_page.locator('#chat-text').fill('Mensagem fictícia enviada')
    chat_page.locator('#chat-send').click()
    chat_page.wait_for_function('window.__chatSent===true',timeout=4000)
    chat_page.wait_for_function("document.querySelector('#chat-status')?.textContent==='Mensagem enviada.'",timeout=4000)
    chat_page.evaluate('window.__releaseFirstRead()')
-   chat_page.wait_for_function("document.querySelector('.chat-message p')?.textContent==='Mensagem fictícia enviada'",timeout=2200)
+   try:
+    chat_page.wait_for_function("document.querySelector('.chat-message p')?.textContent==='Mensagem fictícia enviada'",timeout=2200)
+   except Exception as ex:
+    diagnostic=chat_page.evaluate("""() => ({status:document.querySelector('#chat-status')?.textContent,reads:window.__chatReads(),errors:window.__chatErrors,posted:window.__chatSent,messages:[...document.querySelectorAll('.chat-message p')].map(e=>e.textContent)})""")
+    raise AssertionError(f'Chat não exibiu envio depois de GET lento: {diagnostic}') from ex
    assert chat_page.locator('.chat-message').count()==1, 'Chat deve mostrar o envio sem duplicar cartões'
    assert not chat_errors, f'Erro JS no envio concorrente: {chat_errors}'
    chat_page.evaluate('window.__stopChat()')
