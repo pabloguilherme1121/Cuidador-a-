@@ -56,12 +56,24 @@ with sync_playwright() as p:
    page.wait_for_timeout(1100)
    count=page.evaluate("() => { window.__timerObserver.disconnect(); return window.__timerMutations; }")
    assert count==0, f'Timer ocioso alterou texto idêntico {count} vezes'
-  page.locator('[data-action="timer-preset"][data-minutes="5"]').click()
+  preset=page.locator('[data-action="timer-preset"][data-minutes="5"]')
+  preset.focus()
+  page.keyboard.press('Enter')
+  assert preset.evaluate('(el)=>document.activeElement===el'), f'Timer preset lost keyboard focus at {w}px'
   assert page.locator('#timer-display').inner_text()=='05:00'
   assert page.locator('.timer-ring').evaluate("el=>el.style.getPropertyValue('--timer-progress')")=='100%'
-  page.locator('[data-action="timer-toggle"]').click()
-  assert page.locator('[data-action="timer-toggle"]').count()==1
-  page.locator('[data-action="timer-reset"]').click()
+  toggle=page.locator('[data-action="timer-toggle"]')
+  toggle.focus()
+  page.keyboard.press('Enter')
+  assert toggle.evaluate('(el)=>document.activeElement===el'), f'Timer toggle lost keyboard focus at {w}px'
+  assert toggle.locator('#timer-action').inner_text()=='Pausar'
+  page.keyboard.press('Enter')
+  assert toggle.evaluate('(el)=>document.activeElement===el'), f'Timer pause lost keyboard focus at {w}px'
+  assert toggle.locator('#timer-action').inner_text()=='Continuar'
+  reset=page.locator('[data-action="timer-reset"]')
+  reset.focus()
+  page.keyboard.press('Enter')
+  assert reset.evaluate('(el)=>document.activeElement===el'), f'Timer reset lost keyboard focus at {w}px'
   assert page.locator('.timer-ring').evaluate("el=>el.style.getPropertyValue('--timer-progress')")=='100%'
   page.locator('.tabbtn[data-tab="room"]').click()
   assert page.get_by_text('Sala de Pacientes').count()>0
