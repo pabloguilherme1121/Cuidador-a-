@@ -43,7 +43,7 @@ input[type=search]{width:100%;padding:12px 15px;border:1px solid var(--line);bac
 .swatch[aria-pressed=true]{outline:3px solid var(--fg);outline-offset:3px}
 .swatch.sage{background:#236d56}.swatch.ocean{background:#2178a8}.swatch.lilac{background:#7d64ba}.swatch.coral{background:#b85c68}.swatch.amber{background:#ae7624}.swatch.mint{background:#24a992}
 .timer-panel{padding:28px 18px;text-align:center;max-width:610px;margin:auto}
-.timer-ring{width:min(68vw,275px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;margin:14px auto;background:radial-gradient(circle at center,var(--panel) 63%,transparent 64%),conic-gradient(var(--primary) 0 75%,var(--tint) 75% 100%);box-shadow:inset 0 0 0 5px var(--line),0 15px 40px -30px var(--fg)}
+.timer-ring{width:min(68vw,275px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;margin:14px auto;background:radial-gradient(circle at center,var(--panel) 63%,transparent 64%),conic-gradient(var(--primary) 0 var(--timer-progress,100%),var(--tint) var(--timer-progress,100%) 100%);box-shadow:inset 0 0 0 5px var(--line),0 15px 40px -30px var(--fg)}
 #timer-display{font-size:clamp(2.8rem,11vw,4.9rem);font-weight:850;font-variant-numeric:tabular-nums;letter-spacing:-.07em}
 .timer-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:20px 0 32px}
 .timer-presets{justify-content:center;flex-wrap:wrap;margin:15px 0}
