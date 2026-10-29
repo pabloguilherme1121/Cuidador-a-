@@ -206,8 +206,10 @@ with sync_playwright() as p:
   page.locator('.entry[data-occ-key$="08:00"] [data-action="timeline-edit"]').click()
   assert page.locator('#confirmDialog').evaluate('(e)=>e.open')
   page.locator('#timeline-time-value').fill('09:15')
-  page.locator('#timeline-time-form button[type=submit]').click()
+  page.locator('#timeline-time-form button[type=submit]').focus()
+  page.keyboard.press('Enter')
   assert page.locator('.entry-time').all_inner_texts()==['09:15','20:00']
+  assert page.locator('.entry[data-occ-key$="09:15"] [data-action="timeline-edit"]').evaluate('(el)=>document.activeElement===el'), f'Alterar horário perdeu foco na linha do tempo em {w}px'
   done_button=page.locator('.entry[data-occ-key$="09:15"] [data-action="toggle"]')
   done_button.focus()
   page.keyboard.press('Enter')
@@ -217,9 +219,13 @@ with sync_playwright() as p:
   page.locator('#timeline-time-value').fill('10:00')
   page.locator('#timeline-time-form button[type=submit]').click()
   assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00','20:00']
-  page.locator('.entry[data-occ-key$="20:00"] [data-action="timeline-remove"]').click()
-  page.locator('[data-action="timeline-confirm-remove"]').click()
+  page.locator('.entry[data-occ-key$="20:00"] [data-action="timeline-remove"]').focus()
+  page.keyboard.press('Enter')
+  assert page.locator('#confirmDialog').evaluate('(el)=>el.open')
+  page.locator('[data-action="timeline-confirm-remove"]').focus()
+  page.keyboard.press('Enter')
   assert page.locator('.entry-time').all_inner_texts()==['09:15','10:00']
+  assert page.locator('.entry[data-occ-key$="10:00"] [data-action="timeline-edit"]').evaluate('(el)=>document.activeElement===el'), f'Excluir um horário perdeu foco em {w}px'
   assert page.locator('.entry[data-occ-key$="09:15"] .status').inner_text()=='Concluído'
   assert page.evaluate('document.documentElement.scrollWidth<=window.innerWidth'),f'Timeline overflow {w}px'
 
