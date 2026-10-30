@@ -6,6 +6,13 @@ test('countdown cannot show negative remaining minutes',()=>{assert.equal(format
 test('alarm only when inside configured lead window',()=>{assert.equal(alarmDue(720,715,5),true);assert.equal(alarmDue(720,712,5),false);assert.equal(alarmDue(720,721,5),false);});
 test('times are validated',()=>{assert.equal(validTime('23:59'),true);assert.equal(validTime('25:70'),false);});
 test('ics fields escape injected newlines',()=>{assert.equal(escapeCalendar('x\nBEGIN:VEVENT'), 'x\\nBEGIN:VEVENT');assert.equal(escapeCalendar('a,b;c\\d'),'a\\,b\\;c\\\\d');});
+test('ics escaping neutraliza CR isolado sem criar novas propriedades',()=>{
+ const injected='Consulta\rBEGIN:VEVENT\rSUMMARY:Evento inesperado';
+ const escaped=escapeCalendar(injected);
+ assert.equal(escaped,'Consulta\\nBEGIN:VEVENT\\nSUMMARY:Evento inesperado');
+ assert.equal(/[\r\n]/.test(escaped),false);
+ assert.equal(escapeCalendar('a\r\nb\nc\rd'),'a\\nb\\nc\\nd');
+});
 test('Monday-based week is stable at DST and year boundaries',()=>{assert.equal(firstDayOfWeek(new Date(2026,9,18),1).getDate(),12);assert.equal(rangeWeek(new Date(2026,9,18),1).length,7);});
 test('safe care entry rejects harmful malformed data',()=>{assert.equal(validateCareEntry({title:' ', times:['10:00'], days:[1]}),false);assert.equal(validateCareEntry({title:'Consulta',times:['10:00'],days:[1,3]}),true);});
 
