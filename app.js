@@ -486,7 +486,7 @@ import {createCredentials,completeCredentials,parseRoomFragment,buildRoomFragmen
     const clear=root.querySelector('.routine-clear');
     if(clear)clear.hidden=!searchQuery.trim();
   });
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='system')render()});
+  if(typeof window.matchMedia==='function')window.matchMedia('(prefers-color-scheme: dark)')?.addEventListener?.('change',()=>{if(state.settings.theme==='system')render()});
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e});
   window.addEventListener('appinstalled',()=>{deferredInstall=null;toast('Cuidador(a) instalado.')});
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Service Worker:',err)));
