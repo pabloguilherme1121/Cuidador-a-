@@ -2,16 +2,17 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
 (ROOT/'test-results').mkdir(exist_ok=True)
-html=(ROOT/'index.html').read_text()
+html=(ROOT/'index.html').read_text(encoding='utf-8')
 html=html.replace('<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:; connect-src \'self\'; base-uri \'self\'; object-src \'none\'; frame-ancestors \'none\'" />','').replace('<script src="./app.js" type="module"></script>','').replace('<link rel="stylesheet" href="./styles.css" />','')
-app=(ROOT/'app.js').read_text()
+app=(ROOT/'app.js').read_text(encoding='utf-8')
 assert app.startswith('import {')
 app='\n'.join(line for line in app.splitlines() if not line.startswith('import '))
-room=(ROOT/'room.mjs').read_text().replace('export ','')
-timeline=(ROOT/'timeline.mjs').read_text().replace('export ','')
-core=(ROOT/'core.mjs').read_text().replace('export ','')
+room=(ROOT/'room.mjs').read_text(encoding='utf-8').replace('export ','')
+timeline=(ROOT/'timeline.mjs').read_text(encoding='utf-8').replace('export ','')
+core=(ROOT/'core.mjs').read_text(encoding='utf-8').replace('export ','')
 with sync_playwright() as p:
- b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ chromium_path='/usr/bin/chromium' if Path('/usr/bin/chromium').exists() else None
+ b=p.chromium.launch(headless=True,executable_path=chromium_path,args=['--no-sandbox'])
  # A restricted WebView may not expose matchMedia. System theme must still render.
  compat=b.new_page(viewport={'width':390,'height':820})
  compat_errors=[]
@@ -24,12 +25,18 @@ with sync_playwright() as p:
      getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)
    }});
  }""")
- compat.add_style_tag(content=(ROOT/'styles.css').read_text())
+ compat.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
  for source in [core,room,timeline,app]:
   compat.add_script_tag(content=source)
  assert compat.locator('#onboard-form').count()==1, 'Onboarding não abriu sem matchMedia'
  assert compat.evaluate("document.documentElement.dataset.theme")=='light', 'Tema system sem matchMedia deve usar claro'
  assert not compat_errors, f'Erro ao iniciar sem matchMedia: {compat_errors}'
+ compat.locator('#onboard-form button[type=submit]').click()
+ compat.locator('.tabbtn[data-tab="settings"]').click()
+ assert compat.locator('#profile-form').count()==1, 'Personalização não abriu sem matchMedia'
+ assert compat.locator('#private-notification-choice').is_checked(), 'Proteção de notificações não está ativa por padrão'
+ assert 'garantia com o app fechado' in compat.locator('body').inner_text().lower(), 'Aviso sobre alarmes fechados desapareceu'
+ assert not compat_errors, f'Erro ao abrir Personalização sem matchMedia: {compat_errors}'
  compat.close()
  for w in [320,360,390,430,844]:
   page=b.new_page(viewport={'width':w,'height':820})
@@ -37,7 +44,7 @@ with sync_playwright() as p:
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.set_content(html)
   page.evaluate('''() => { const db=new Map(); Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)}}); }''')
-  page.add_style_tag(content=(ROOT/'styles.css').read_text())
+  page.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
   page.add_script_tag(content=core)
   page.add_script_tag(content=room)
   page.add_script_tag(content=timeline)
@@ -296,7 +303,7 @@ with sync_playwright() as p:
        removeItem:k=>db.delete(k)
      }});
    }""")
-   viewer.add_style_tag(content=(ROOT/'styles.css').read_text())
+   viewer.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
    viewer.add_script_tag(content=core)
    viewer.add_script_tag(content=room)
    viewer.add_script_tag(content=timeline)
@@ -328,7 +335,7 @@ with sync_playwright() as p:
        removeItem:k=>db.delete(k)
      }});
    }""")
-   conflicted.add_style_tag(content=(ROOT/'styles.css').read_text())
+   conflicted.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
    conflicted.add_script_tag(content=core)
    conflicted.add_script_tag(content=room)
    conflicted.add_script_tag(content=timeline)
@@ -393,7 +400,7 @@ with sync_playwright() as p:
       }});
       window.fetch=async()=>({ok:true,status:200,json:async()=>({version:2})});
     }""")
-    stale.add_style_tag(content=(ROOT/'styles.css').read_text())
+    stale.add_style_tag(content=(ROOT/'styles.css').read_text(encoding='utf-8'))
     stale.add_script_tag(content=core)
     stale.add_script_tag(content=room)
     stale.add_script_tag(content=timeline)
@@ -446,7 +453,7 @@ with sync_playwright() as p:
        getItem:()=>null,setItem:()=>{},removeItem:()=>{}
      }});
    }""")
-   chat_code=(ROOT/'chat.mjs').read_text()
+   chat_code=(ROOT/'chat.mjs').read_text(encoding='utf-8')
    chat_code='\n'.join(line for line in chat_code.splitlines() if not line.startswith('import ')).replace('export ','')
    chat_page.add_script_tag(content="const roomCanEdit=()=>true;const completeCredentials=async()=>({readToken:'test-read',token:'test-write'});"+chat_code)
    chat_page.evaluate("""() => {

@@ -3,6 +3,7 @@ Run: python3 tests/browser-smoke.py  (requires playwright + chromium)
 """
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from shutil import copytree
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
 from threading import Thread
@@ -11,7 +12,11 @@ import os
 
 ROOT=Path(__file__).resolve().parents[1]/'dist'
 with TemporaryDirectory() as temp:
-    (Path(temp)/'Cuidadora').symlink_to(ROOT, target_is_directory=True)
+    site_root=Path(temp)/'Cuidadora'
+    if os.name=='nt':
+        copytree(ROOT,site_root)
+    else:
+        site_root.symlink_to(ROOT,target_is_directory=True)
     handler=partial(SimpleHTTPRequestHandler,directory=temp)
     server=ThreadingHTTPServer(('127.0.0.1',0),handler)
     Thread(target=server.serve_forever,daemon=True).start()
