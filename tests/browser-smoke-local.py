@@ -12,6 +12,25 @@ timeline=(ROOT/'timeline.mjs').read_text().replace('export ','')
 core=(ROOT/'core.mjs').read_text().replace('export ','')
 with sync_playwright() as p:
  b=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ # A restricted WebView may not expose matchMedia. System theme must still render.
+ compat=b.new_page(viewport={'width':390,'height':820})
+ compat_errors=[]
+ compat.on('pageerror',lambda e:compat_errors.append(str(e)))
+ compat.set_content(html)
+ compat.evaluate("""() => {
+   Object.defineProperty(window,'matchMedia',{configurable:true,value:undefined});
+   const db=new Map();
+   Object.defineProperty(window,'localStorage',{configurable:true,value:{
+     getItem:k=>db.get(k)||null,setItem:(k,v)=>db.set(k,v),removeItem:k=>db.delete(k)
+   }});
+ }""")
+ compat.add_style_tag(content=(ROOT/'styles.css').read_text())
+ for source in [core,room,timeline,app]:
+  compat.add_script_tag(content=source)
+ assert compat.locator('#onboard-form').count()==1, 'Onboarding não abriu sem matchMedia'
+ assert compat.evaluate("document.documentElement.dataset.theme")=='light', 'Tema system sem matchMedia deve usar claro'
+ assert not compat_errors, f'Erro ao iniciar sem matchMedia: {compat_errors}'
+ compat.close()
  for w in [320,360,390,430,844]:
   page=b.new_page(viewport={'width':w,'height':820})
   errors=[]
