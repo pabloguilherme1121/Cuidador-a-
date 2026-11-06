@@ -2,7 +2,7 @@
 const CACHE='cuidadora-cache-v14-routine-search';
 const ASSETS=['./','./index.html','./privacidade.html','./styles.css','./app.js','./core.mjs','./room.mjs','./chat.mjs','./timeline.mjs','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png','./assets/pg-bot.webp'];
 // Always seek fresh executable assets; if there is no connection, use the offline copy.
-const NETWORK_FIRST=new Set(['index.html','app.js','core.mjs','room.mjs','chat.mjs','timeline.mjs','styles.css','manifest.webmanifest']);
+const NETWORK_FIRST=new Set(['index.html','privacidade.html','app.js','core.mjs','room.mjs','chat.mjs','timeline.mjs','styles.css','manifest.webmanifest']);
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(Promise.all([
  caches.keys().then(keys=>Promise.all(keys.filter(k=>(k.startsWith('meu-ritmo-')||k.startsWith('cuidadora-'))&&k!==CACHE).map(k=>caches.delete(k)))),
@@ -28,7 +28,7 @@ self.addEventListener('fetch',event=>{
  if(req.method!=='GET'||new URL(req.url).origin!==location.origin)return;
  const path=new URL(req.url).pathname;
  // Never cache room API responses (even ciphertext). Offline edits remain local.
- if(path.startsWith('/api/'))return;
+ if(path==='/api'||path.startsWith('/api/'))return;
  const asset=path.split('/').pop();
  if(req.mode==='navigate'||NETWORK_FIRST.has(asset)){
   event.respondWith(networkFirst(req));

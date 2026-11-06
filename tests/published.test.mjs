@@ -22,7 +22,8 @@ test('service worker refreshes executable assets online and falls back to cached
  const sw=readFileSync(join(root,'sw.js'),'utf8');
  assert.ok(sw.includes("cuidadora-cache-v14-routine-search"),'SW cache version must update for the new release');
  assert.ok(sw.includes("const NETWORK_FIRST"),'Scripts and CSS should prefer network to avoid stale health reminders');
- assert.ok(sw.includes("if(path.startsWith('/api/'))return"),'Private room endpoints must not be cached by service worker');
+ assert.ok(sw.includes("'index.html','privacidade.html','app.js'"),'Privacy notice should be refreshed online');
+ assert.ok(sw.includes("if(path==='/api'||path.startsWith('/api/'))return"),'Private room endpoints must not be cached by service worker');
  assert.ok(sw.includes('caches.match(req)'),'Offline cache remains available when offline');
 });
 
