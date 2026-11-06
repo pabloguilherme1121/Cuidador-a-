@@ -57,7 +57,7 @@ export async function roomApi(req,env){
  const url=new URL(req.url),path=url.pathname;
  if(path==='/api/rooms'&&req.method==='POST'){
   let data;try{data=await parse(req)}catch{return response({error:'Formato inválido ou muito grande'},400)}
-  if(!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!OK_HASH.test(data.readHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
+  if(!data||typeof data!=='object'||Array.isArray(data)||!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!OK_HASH.test(data.readHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
   try{await env.CARE_ROOMS.prepare('INSERT INTO rooms (id,auth_hash,read_hash,iv,ciphertext,version,updated_at) VALUES (?,?,?,?,?,1,?)').bind(data.id,data.authHash,data.readHash,data.iv,data.ciphertext,Date.now()).run();return response({version:1},201)}catch{return response({error:'Não foi possível criar a sala'},409)}
  }
  const match=/^\/api\/rooms\/([\w-]{22})(\/messages)?$/.exec(path);if(!match)return response({error:'Não encontrado'},404);
