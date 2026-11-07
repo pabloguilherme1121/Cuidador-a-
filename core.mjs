@@ -11,7 +11,7 @@ export function normalizePreferences(p={}) {
 }
 export function formatCountdown(n) {if(n<=0)return 'Agora';const hours=Math.floor(n/60),mins=n%60;return hours?`${hours}h${mins?' '+mins+'min':''}`:`${mins} min`;}
 export function alarmDue(scheduledMinute,currentMinute,lead=0){return currentMinute>=scheduledMinute-lead&&currentMinute<=scheduledMinute&&currentMinute>=0&&currentMinute<1440;}
-export function escapeCalendar(v){return String(v??'').replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
+export function escapeCalendar(v){return String(v??'').replace(/\\/g,'\\\\').replace(/\r\n|\r|\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
 export function firstDayOfWeek(date,start=1){const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());d.setDate(d.getDate()-((d.getDay()-start+7)%7));return d;}
 export function rangeWeek(date,start=1){const first=firstDayOfWeek(date,start);return Array.from({length:7},(_,i)=>new Date(first.getFullYear(),first.getMonth(),first.getDate()+i));}
 export function validateCareEntry(x){return Boolean(x && typeof x.title==='string' && x.title.trim().length>0 && x.title.length<=100 && Array.isArray(x.times) && x.times.length>0 && x.times.length<=24 && x.times.every(validTime) && Array.isArray(x.days) && x.days.length>0 && x.days.every(d=>Number.isInteger(d)&&d>=0&&d<=6));}
