@@ -9,7 +9,21 @@ const CHAT_ID=/^[\w-]{16}$/;const CHAT_IV=/^[\w-]{16}$/;const CHAT_CIPHER=/^[\w-
 const OK_ID=/^[\w-]{22}$/; const OK_HASH=/^[\w-]{43}$/;const OK_IV=/^[\w-]{16}$/;const OK_CIPHER=/^[\w-]{22,140000}$/;
 export const isValidEnvelope=e=>e&&typeof e==='object'&&OK_IV.test(e.iv||'')&&OK_CIPHER.test(e.ciphertext||'');
 const response=(o,status=200)=>new Response(JSON.stringify(o),{status,headers:JSON_HEADERS});
-const parse=async req=>{if(Number(req.headers.get('content-length'))>145000)throw new Error('Arquivo muito grande');const s=await req.text();if(s.length>145000)throw new Error('Arquivo muito grande');return JSON.parse(s)};
+const parse=async req=>{
+ const limit=145000;
+ if(Number(req.headers.get('content-length'))>limit)throw new Error('Arquivo muito grande');
+ if(!req.body)return JSON.parse('');
+ const reader=req.body.getReader(),decoder=new TextDecoder();let size=0,body='';
+ try{
+  while(true){
+   const {done,value}=await reader.read();if(done)break;
+   size+=value.byteLength;
+   if(size>limit){reader.cancel().catch(()=>{});throw new Error('Arquivo muito grande')}
+   body+=decoder.decode(value,{stream:true});
+  }
+  return JSON.parse(body+decoder.decode());
+ }finally{reader.releaseLock()}
+};
 const checkOrigin=req=>{const origin=req.headers.get('Origin');return !origin||origin===new URL(req.url).origin};
 // Only pseudonymous, time-bucketed HMACs enter D1; the raw IP is never stored.
 // This deters casual automation; shared IPs and botnets can cause false positives/evasion.
