@@ -113,10 +113,14 @@ async function chatApi(req,env,id,row){
  let msg;try{msg=await parse(req)}catch{return response({error:'Mensagem inválida'},400)}
  if(!msg||!CHAT_ID.test(msg.id||'')||!CHAT_IV.test(msg.iv||'')||!CHAT_CIPHER.test(msg.ciphertext||''))return response({error:'Mensagem cifrada inválida'},400);
  const now=Date.now();
- const rate=await db.prepare('SELECT COUNT(*) AS count FROM room_messages WHERE room_id=? AND created_at>?').bind(id,now-60000).first();
- if(Number(rate?.count)>=12)return response({error:'Aguarde antes de enviar novas mensagens.'},429);
- const inserted=await db.prepare('INSERT OR IGNORE INTO room_messages (room_id,id,iv,ciphertext,created_at) VALUES (?,?,?,?,?)').bind(id,msg.id,msg.iv,msg.ciphertext,now).run();
- if(inserted.meta?.changes===0)return response({saved:true,duplicate:true});
+ // Count and insertion happen inside one D1/SQLite statement, so competing
+ // Workers cannot both accept the final message in a per-room window.
+ const inserted=await db.prepare('INSERT OR IGNORE INTO room_messages (room_id,id,iv,ciphertext,created_at) SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM room_messages WHERE room_id=? AND created_at>?) < 12').bind(id,msg.id,msg.iv,msg.ciphertext,now,id,now-60000).run();
+ if(inserted.meta?.changes===0){
+  // Distinguish a repeated message ID from a full quota without a read-before-write.
+  const duplicate=await db.prepare('SELECT 1 AS duplicate FROM room_messages WHERE room_id=? AND id=?').bind(id,msg.id).first();
+  return duplicate?response({saved:true,duplicate:true}):response({error:'Aguarde antes de enviar novas mensagens.'},429);
+ }
  // Keep at most 200 encrypted messages per room, without collecting usage profiles.
  await db.prepare('DELETE FROM room_messages WHERE room_id=? AND id NOT IN (SELECT id FROM room_messages WHERE room_id=? ORDER BY created_at DESC,id DESC LIMIT 200)').bind(id,id).run();
  return response({saved:true},201);
