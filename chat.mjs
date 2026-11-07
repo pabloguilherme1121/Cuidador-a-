@@ -21,6 +21,12 @@ export const shouldClearSentDraft=(current,sent)=>current===sent;
 /** Limit the alias using the same Unicode code-point contract as encrypted messages. */
 export const limitChatAlias=value=>Array.from(String(value??'')).slice(0,28).join('');
 export const validChatEnvelope=v=>Boolean(v&&ID.test(v.id||'')&&/^[\w-]{16}$/.test(v.iv||'')&&/^[\w-]{22,2500}$/.test(v.ciphertext||''));
+/** Ignore invalid timestamps from a corrupted chat row instead of crashing the history. */
+export function safeChatDate(value){
+ if(typeof value!=='number'||!Number.isFinite(value))return null;
+ const date=new Date(value);
+ return Number.isFinite(date.getTime())?date:null;
+}
 async function aesKey(room){return crypto.subtle.importKey('raw',from64(room.key),'AES-GCM',false,['encrypt','decrypt'])}
 export async function createChatMessage(room,{author,text}){
  if(!room||!validChatText(text))throw new Error('Escreva uma mensagem de até 500 caracteres.');
@@ -84,7 +90,7 @@ export function mountRoomChat(element,room,{onError=()=>{}}={}){
    const article=document.createElement('article');article.className='chat-message';
    const meta=document.createElement('div');meta.className='chat-meta';
    const name=document.createElement('strong');name.textContent=m.author;
-   const date=document.createElement('time');date.dateTime=new Date(m.createdAt).toISOString();date.textContent=new Date(m.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+   const date=document.createElement('time');const timestamp=safeChatDate(m.createdAt);if(timestamp){date.dateTime=timestamp.toISOString();date.textContent=timestamp.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}else{date.textContent='Horário indisponível';}
    meta.append(name,date);
    const content=document.createElement('p');content.textContent=m.text;article.append(meta,content);box.append(article);
   }
