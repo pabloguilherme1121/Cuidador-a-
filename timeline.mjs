@@ -2,7 +2,7 @@
 const timePattern=/^([01]\d|2[0-3]):[0-5]\d$/;
 function hasTime(item,time){return Boolean(item&&Array.isArray(item.times)&&item.times.includes(time));}
 export function changeOccurrenceTime(item,fromTime,toTime){
- if(!hasTime(item,fromTime)||!timePattern.test(toTime)|| (toTime!==fromTime&&item.times.includes(toTime))) throw new Error('Escolha um horário diferente e válido.');
+ if(!hasTime(item,fromTime)||!timePattern.test(toTime)||toTime===fromTime||item.times.includes(toTime)) throw new Error('Escolha um horário diferente e válido.');
  return {...item,times:[...item.times.filter(t=>t!==fromTime),toTime].sort()};
 }
 export function removeOccurrenceTime(item,time){
