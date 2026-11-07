@@ -77,3 +77,13 @@ test('legacy room must require editor authentication before GET and 304', async(
  const authenticatedConditional=new Request(base+uri,{headers:{Origin:base,'X-Room-Token':owner.token,'If-None-Match':'"v1"'}});
  assert.equal((await roomApi(authenticatedConditional,env)).status,304);
 });
+
+test('room creation rejects JSON null and arrays with 400 without touching D1', async()=>{
+ const env={CARE_ROOMS:{prepare(){throw Error('D1 should not run for invalid payload')}}};
+ for(const body of ['null','[]']){
+  const req=new Request(base+'/api/rooms',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body});
+  const res=await roomApi(req,env);
+  assert.equal(res.status,400,'Invalid JSON root '+body+' must be a client error');
+  assert.match((await res.json()).error,/Sala inválida/);
+ }
+});
