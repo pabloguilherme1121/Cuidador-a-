@@ -158,3 +158,12 @@ test('duas mensagens concorrentes na cota 11/12 não ultrapassam 12 por minuto',
  assert.deepEqual(results.sort((a,b)=>a-b),[201,429]);
  assert.equal(db.messageCount,12,'SQL guard and insert must be atomic under concurrent sends');
 });
+
+test('o chat ignora horários inválidos sem interromper a exibição de outras mensagens',async()=>{
+ const {safeChatDate}=await import('../chat.mjs');
+ const time=Date.UTC(2026,10,6,16,30);
+ assert.equal(safeChatDate(time)?.toISOString(),'2026-11-06T16:30:00.000Z');
+ for(const invalid of [null,undefined,NaN,Infinity,1e100,'data inválida',{},[]]){
+  assert.equal(safeChatDate(invalid),null,'timestamp inválido deve ser ignorado: '+String(invalid));
+ }
+});
