@@ -131,3 +131,12 @@ test('draft memory restores only inside the same room and never into another roo
  assert.equal(chatDraftForRoom(null,'room-A'),null);
  assert.equal(chatDraftForRoom({roomId:'room-A',text:'',alias:''},'room-A').text,'');
 });
+
+test('o chat ignora horários inválidos sem interromper a exibição de outras mensagens',async()=>{
+ const {safeChatDate}=await import('../chat.mjs');
+ const time=Date.UTC(2026,10,6,16,30);
+ assert.equal(safeChatDate(time)?.toISOString(),'2026-11-06T16:30:00.000Z');
+ for(const invalid of [null,undefined,NaN,Infinity,1e100,'data inválida',{},[]]){
+  assert.equal(safeChatDate(invalid),null,'timestamp inválido deve ser ignorado: '+String(invalid));
+ }
+});
