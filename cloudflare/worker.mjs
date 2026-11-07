@@ -9,7 +9,21 @@ const CHAT_ID=/^[\w-]{16}$/;const CHAT_IV=/^[\w-]{16}$/;const CHAT_CIPHER=/^[\w-
 const OK_ID=/^[\w-]{22}$/; const OK_HASH=/^[\w-]{43}$/;const OK_IV=/^[\w-]{16}$/;const OK_CIPHER=/^[\w-]{22,140000}$/;
 export const isValidEnvelope=e=>e&&typeof e==='object'&&OK_IV.test(e.iv||'')&&OK_CIPHER.test(e.ciphertext||'');
 const response=(o,status=200)=>new Response(JSON.stringify(o),{status,headers:JSON_HEADERS});
-const parse=async req=>{if(Number(req.headers.get('content-length'))>145000)throw new Error('Arquivo muito grande');const s=await req.text();if(s.length>145000)throw new Error('Arquivo muito grande');return JSON.parse(s)};
+const parse=async req=>{
+ const limit=145000;
+ if(Number(req.headers.get('content-length'))>limit)throw new Error('Arquivo muito grande');
+ if(!req.body)return JSON.parse('');
+ const reader=req.body.getReader(),decoder=new TextDecoder();let size=0,body='';
+ try{
+  while(true){
+   const {done,value}=await reader.read();if(done)break;
+   size+=value.byteLength;
+   if(size>limit){reader.cancel().catch(()=>{});throw new Error('Arquivo muito grande')}
+   body+=decoder.decode(value,{stream:true});
+  }
+  return JSON.parse(body+decoder.decode());
+ }finally{reader.releaseLock()}
+};
 const checkOrigin=req=>{const origin=req.headers.get('Origin');return !origin||origin===new URL(req.url).origin};
 // Only pseudonymous, time-bucketed HMACs enter D1; the raw IP is never stored.
 // This deters casual automation; shared IPs and botnets can cause false positives/evasion.
@@ -57,7 +71,7 @@ export async function roomApi(req,env){
  const url=new URL(req.url),path=url.pathname;
  if(path==='/api/rooms'&&req.method==='POST'){
   let data;try{data=await parse(req)}catch{return response({error:'Formato inválido ou muito grande'},400)}
-  if(!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!OK_HASH.test(data.readHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
+  if(!data||typeof data!=='object'||Array.isArray(data)||!OK_ID.test(data.id||'')||!OK_HASH.test(data.authHash||'')||!OK_HASH.test(data.readHash||'')||!isValidEnvelope(data))return response({error:'Sala inválida'},400);
   try{await env.CARE_ROOMS.prepare('INSERT INTO rooms (id,auth_hash,read_hash,iv,ciphertext,version,updated_at) VALUES (?,?,?,?,?,1,?)').bind(data.id,data.authHash,data.readHash,data.iv,data.ciphertext,Date.now()).run();return response({version:1},201)}catch{return response({error:'Não foi possível criar a sala'},409)}
  }
  const match=/^\/api\/rooms\/([\w-]{22})(\/messages)?$/.exec(path);if(!match)return response({error:'Não encontrado'},404);
