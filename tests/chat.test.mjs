@@ -7,14 +7,19 @@ import {roomApi} from '../cloudflare/worker.mjs';
 const base='https://cuidadora.example';
 const makeReq=(path,method='GET',body,token,readToken)=>new Request(base+path,{method,headers:{'Content-Type':'application/json','Origin':base,...(token?{'X-Room-Token':token}:{}),...(readToken?{'X-Room-Read-Token':readToken}:{})},...(body?{body:JSON.stringify(body)}:{})});
 function makeDB(){
- const rooms=new Map(),messages=[];
- return {prepare(sql){
+ const rooms=new Map(),messages=[],countWaiters=[];let overlapCounts=false;
+ return {get messageCount(){return messages.length},overlapNextCounts(){overlapCounts=true},prepare(sql){
    let args=[];
    return {
     bind(...a){args=a;return this},
     async first(){
       if(sql.startsWith('SELECT id,auth_hash'))return rooms.get(args[0])||null;
-      if(sql.startsWith('SELECT COUNT'))return {count:messages.filter(x=>x.room_id===args[0]&&x.created_at>args[1]).length};
+      if(sql.startsWith('SELECT COUNT')){
+       const snapshot={count:messages.filter(x=>x.room_id===args[0]&&x.created_at>args[1]).length};
+       if(overlapCounts)return new Promise(resolve=>{countWaiters.push(()=>resolve(snapshot));if(countWaiters.length===2){overlapCounts=false;for(const done of countWaiters.splice(0))done();}});
+       return snapshot;
+      }
+      if(sql.startsWith('SELECT 1 AS duplicate FROM room_messages'))return messages.some(x=>x.room_id===args[0]&&x.id===args[1])?{duplicate:1}:null;
       throw Error('unexpected first '+sql);
     },
     async all(){
@@ -28,6 +33,11 @@ function makeDB(){
         rooms.set(args[0],{id:args[0],auth_hash:args[1],read_hash:args[2],iv:args[3],ciphertext:args[4],version:1,updated_at:args[5]});return {meta:{changes:1}};
       }
       if(sql.startsWith('INSERT OR IGNORE INTO room_messages')){
+        // Atomic INSERT ... SELECT applies the quota and insert as one SQLite statement.
+        if(sql.includes('WHERE (SELECT COUNT(*) FROM room_messages')){
+         const active=messages.filter(x=>x.room_id===args[5]&&x.created_at>args[6]).length;
+         if(active>=12)return {meta:{changes:0}};
+        }
         if(messages.some(x=>x.room_id===args[0]&&x.id===args[1]))return {meta:{changes:0}};
         messages.push({room_id:args[0],id:args[1],iv:args[2],ciphertext:args[3],created_at:args[4]});return {meta:{changes:1}};
       }
@@ -130,4 +140,21 @@ test('draft memory restores only inside the same room and never into another roo
  assert.equal(chatDraftForRoom(sample,'room-B'),null);
  assert.equal(chatDraftForRoom(null,'room-A'),null);
  assert.equal(chatDraftForRoom({roomId:'room-A',text:'',alias:''},'room-A').text,'');
+});
+
+
+test('duas mensagens concorrentes na cota 11/12 não ultrapassam 12 por minuto',async()=>{
+ const {encryptRoom}=await import('../room.mjs');
+ const a=await createCredentials(),db=makeDB(),env={CARE_ROOMS:db};
+ const envelope=await encryptRoom(a,{version:1,items:[],settings:{theme:'light'}});
+ assert.equal((await roomApi(makeReq('/api/rooms','POST',{...envelope,id:a.id,authHash:a.authHash,readHash:a.readHash}),env)).status,201);
+ const route='/api/rooms/'+a.id+'/messages';
+ const message=i=>({id:String(i).padStart(16,'0'),iv:'A'.repeat(16),ciphertext:'B'.repeat(24)});
+ for(let i=0;i<11;i++)assert.equal((await roomApi(makeReq(route,'POST',message(i),a.token),env)).status,201);
+ assert.equal(db.messageCount,11);
+ // Models two Workers reading the same pre-insert count simultaneously.
+ db.overlapNextCounts();
+ const results=await Promise.all([11,12].map(async i=>(await roomApi(makeReq(route,'POST',message(i),a.token),env)).status));
+ assert.deepEqual(results.sort((a,b)=>a-b),[201,429]);
+ assert.equal(db.messageCount,12,'SQL guard and insert must be atomic under concurrent sends');
 });
