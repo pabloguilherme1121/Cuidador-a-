@@ -41,3 +41,20 @@ test('cache saudável continua recebendo recursos atualizados',async()=>{
  assert.equal(await (await sw.request('/styles.css')).text(),'fresh');
  assert.equal(sw.writes,1);
 });
+
+test('aviso de privacidade busca a versão mais recente quando há rede',async()=>{
+ const sw=boot();
+ const res=await sw.request('/privacidade.html');
+ assert.equal(await res.text(),'fresh','um aviso de privacidade atualizado não deve servir cache obsoleto');
+ assert.equal(sw.writes,1,'atualização deve substituir o cache offline');
+});
+test('aviso de privacidade permanece acessível offline',async()=>{
+ const sw=boot({offline:true});
+ const res=await sw.request('/privacidade.html');
+ assert.equal(await res.text(),'cached');
+});
+test('endpoint /api e /api/rooms jamais são interceptados pelo service worker',async()=>{
+ const sw=boot();
+ assert.equal(await sw.request('/api'),null);
+ assert.equal(await sw.request('/api/rooms'),null);
+});
