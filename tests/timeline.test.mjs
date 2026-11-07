@@ -13,6 +13,10 @@ test('alterar um horario recorrente preserva outros horários e dados da rotina'
 test('troca invalida, duplicada ou com horario ausente e recusada',()=>{
  for(const [before,after] of [['08:00','25:20'],['08:00','20:00'],['06:00','07:00']]) assert.throws(()=>changeOccurrenceTime(med,before,after));
 });
+test('salvar o mesmo horario nao altera a rotina nem confirma mudanca inexistente',()=>{
+ assert.throws(()=>changeOccurrenceTime(med,'08:00','08:00'),/horário diferente/);
+ assert.deepEqual(med.times,['08:00','20:00']);
+});
 test('remover somente um horario conserva outros; remover ultimo exclui a rotina',()=>{
  assert.deepEqual(removeOccurrenceTime(med,'08:00').times,['20:00']);
  assert.equal(removeOccurrenceTime({...med,times:['08:00']},'08:00'),null);
